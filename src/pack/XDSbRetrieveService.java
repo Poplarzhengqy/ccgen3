@@ -356,7 +356,7 @@ public class XDSbRetrieveService extends ServiceMBeanSupport {
                         log.info(InfoSetUtil.getLogMessage(rsp));
                     }
                     if ( checkResponse(rsp.getRegistryResponse()) ) {
-                        log.info("Add "+rsp.getDocumentResponse().size()+" of "+repositoryDocRequests+" requested documents from remote repository!");
+                        log.info("Add "+rsp.getDocumentResponse().size()+" of "+repositoryDocRequests.size()+" requested documents from remote repository!");
                         mainResp.getDocumentResponse().addAll(rsp.getDocumentResponse());
                     } else {
                         log.warn("Retrieve of " + repositoryDocRequests.size() + " remote documents from "+extRepositoryURI+" was not successful!");
