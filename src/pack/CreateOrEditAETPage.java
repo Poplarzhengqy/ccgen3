@@ -38,6 +38,7 @@
 
 package org.dcm4chee.web.war.ae;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 
@@ -115,14 +116,14 @@ public class CreateOrEditAETPage extends SecureWebPage {
 
         form.add(new Label("type.label", new StringResourceModel("ae.type.label", CreateOrEditAETPage.this, null, new Object[]{1} ) ) );
         AELicenseProviderSPI provider = AELicenseProviderManager.get(null).getProvider();
-        List<String> aetTypes = provider.getAETypes(WebCfgDelegate.getInstance().getAETTypes());
-        final String providerName = provider.getName();
+        List<String> aetTypes = new ArrayList<String>(provider.getAETypes(WebCfgDelegate.getInstance().getAETTypes()));
+        boolean nullAeTypeAllowed = aetTypes.remove(null);
         DropDownChoice<String> typeSelection = null;
         form.add((typeSelection  = new DropDownChoice<String>("type-selection",
                 new PropertyModel<String>(ae, "aeGroup"),
                 aetTypes
         ))
-        .setNullValid(providerName.equals("NOPLicenseProvider"))
+        .setNullValid(nullAeTypeAllowed)
         .add( new AbstractValidator<String>() {
             private static final long serialVersionUID = 1L;
 
@@ -139,11 +140,7 @@ public class CreateOrEditAETPage extends SecureWebPage {
                 }
             }
         }));
-        if (aetTypes.size() > 0) {
-            if ((ae.getAeGroup() == null && !typeSelection.isNullValid()))  
-                typeSelection.getModel().setObject(aetTypes.get(0));
-        } else
-            typeSelection.setEnabled(false);
+        typeSelection.setEnabled(aetTypes.size() > 0);
          
         form.addLabeledTextField("hostName").setRequired(true); 
         form.addLabeledNumberTextField("port").add(new RangeValidator<Integer>(1,65535));

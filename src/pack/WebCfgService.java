@@ -105,6 +105,7 @@ public class WebCfgService extends ServiceMBeanSupport implements
     protected final String NEWLINE = System.getProperty("line.separator", "\n");
 
     private static final String ANY = "ANY";
+    private static final String EMPTY = "EMPTY";
 
     private static final String DEFAULT_TIMER_SERVICE = "jboss:service=Timer";
 
@@ -458,7 +459,7 @@ public class WebCfgService extends ServiceMBeanSupport implements
     }
 
     public List<String> getAETTypesList() {
-        return aetTypes;
+        return new ArrayList<String>(aetTypes);
     }
 
     public void setAETTypes(String s) {
@@ -614,7 +615,7 @@ public class WebCfgService extends ServiceMBeanSupport implements
             return NONE;
         StringBuilder sb = new StringBuilder();
         for (String m : list) {
-            sb.append(m).append(sep);
+            sb.append(m == null ? EMPTY : m).append(sep);
         }
         return sb.toString();
     }
@@ -632,8 +633,10 @@ public class WebCfgService extends ServiceMBeanSupport implements
         list.clear();
         if (!NONE.equals(s)) {
             StringTokenizer st = new StringTokenizer(s, sep);
+            String tk;
             while (st.hasMoreTokens()) {
-                list.add(st.nextToken());
+                tk = st.nextToken();
+                list.add(EMPTY.equals(tk) ? null : tk);
             }
         }
     }
