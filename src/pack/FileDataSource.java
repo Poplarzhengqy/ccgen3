@@ -51,6 +51,7 @@ import java.io.OutputStream;
 import javax.imageio.stream.FileImageInputStream;
 
 import org.dcm4che.data.Dataset;
+import org.dcm4che.data.DcmDecodeParam;
 import org.dcm4che.data.DcmElement;
 import org.dcm4che.data.DcmEncodeParam;
 import org.dcm4che.data.DcmObjectFactory;
@@ -208,14 +209,15 @@ public class FileDataSource implements DataSource {
                 new BufferedInputStream(new FileInputStream(file)));
         FileImageInputStream fiis = null;
         try {
-            DcmParser parser = DcmParserFactory.getInstance().newDcmParser(dis);
             Dataset ds = DcmObjectFactory.getInstance().newDataset();
+            DcmParser parser = DcmParserFactory.getInstance().newDcmParser(dis);
             parser.setDcmHandler(ds.getDcmHandler());
             parser.parseDcmFile(null, Tags.PixelData);
             boolean hasPixelData = parser.getReadTag() == Tags.PixelData;
+            DcmDecodeParam dcmDecodeParam = parser.getDcmDecodeParam();
             if (!hasPixelData && !parser.hasSeenEOF()) {
                 parser.unreadHeader();
-                parser.parseDataset(parser.getDcmDecodeParam(), -1);
+                parser.parseDataset(dcmDecodeParam, -1);
             }
             ds.putAll(mergeAttrs);
             String tsOrig = DecompressCmd.getTransferSyntax(ds);
@@ -253,7 +255,7 @@ public class FileDataSource implements DataSource {
                     } while (parser.getReadTag() == Tags.Item);
                 }
                 // parse attributes after Pixel Data
-                parser.parseDataset(parser.getDcmDecodeParam(), -1);
+                parser.parseDataset(dcmDecodeParam, -1);
                 log.debug("Dataset:\n");
                 log.debug(ds);
                 write(ds, out, enc);
@@ -350,6 +352,7 @@ public class FileDataSource implements DataSource {
                 fiis = new FileImageInputStream(file);
                 fiis.seek(parser.getStreamPosition());
                 parser = DcmParserFactory.getInstance().newDcmParser(fiis);
+                parser.setDcmHandler(ds.getDcmHandler());
                 DecompressCmd cmd = new DecompressCmd(ds, tsOrig, parser);
                 cmd.setSimpleFrameList(simpleFrameList);
                 int newPixelDataLen = cmd.getPixelDataLength();
@@ -366,7 +369,7 @@ public class FileDataSource implements DataSource {
                     out.write(0);
             }
             // parse attributes after Pixel Data
-            parser.parseDataset(parser.getDcmDecodeParam(), -1);
+            parser.parseDataset(dcmDecodeParam, -1);
             ds.subSet(Tags.PixelData, -1).writeDataset(out, enc);
         } finally {
             try {
