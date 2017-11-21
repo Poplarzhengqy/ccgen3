@@ -216,19 +216,20 @@ public class UpdateAttributesService extends ServiceMBeanSupport {
         int count = 0;
         Dataset series = null;
         for (int i = 0; i < fileInfos.length; i++) {
-            Dataset inst = loadDataset(fileInfos[i]);
-            correctUID(inst, Tags.SOPInstanceUID, fileInfos[i][0].sopIUID);
-            correctUID(inst, Tags.SeriesInstanceUID, fileInfos[i][0].seriesIUID);
-            correctUID(inst, Tags.StudyInstanceUID, fileInfos[i][0].studyIUID);
-            if (inst != null) {
-                try {
+            try {
+                log.debug("Update Attributes of fileinfo:"+fileInfos[i][0]);
+                Dataset inst = loadDataset(fileInfos[i]);
+                correctUID(inst, Tags.SOPInstanceUID, fileInfos[i][0].sopIUID);
+                correctUID(inst, Tags.SeriesInstanceUID, fileInfos[i][0].seriesIUID);
+                correctUID(inst, Tags.StudyInstanceUID, fileInfos[i][0].studyIUID);
+                if (inst != null) {
                     updateAttributes.updateInstanceAttributes(inst);
                     series = inst;
                     ++count;
-                } catch (Exception e) {
-                    log.error("Failed to update instance[uid= " 
-                            + inst.getString(Tags.SOPInstanceUID) + "]");
                 }
+            } catch (Exception e) {
+                log.error("Failed to update instance[uid= " +fileInfos[i][0].sopIUID + "]");
+                log.debug("Exception in UpdateSeries:", e);
             }
         }
         if (series != null) {
