@@ -152,6 +152,8 @@ public class HL7ServerService extends ServiceMBeanSupport implements
     private Hashtable serviceRegistry = new Hashtable();
 
     private String[] noopMessageTypes = {};
+    
+    private boolean jbossStarted;
 
     public final String getCharsetName() {
 		return charsetName;
@@ -363,7 +365,12 @@ public class HL7ServerService extends ServiceMBeanSupport implements
         hl7srv.addHandshakeCompletedListener(tlsConfig.handshakeCompletedListener());
         hl7srv.setServerSocketFactory(tlsConfig.serverSocketFactory(protocol
                 .getCipherSuites()));
-        server.addNotificationListener(ServerImplMBean.OBJECT_NAME, this, null, null);
+        if (jbossStarted) {
+            log.info("Start HL7 server after restart of HL7Server service!");
+            startHL7Server();
+        } else {
+            server.addNotificationListener(ServerImplMBean.OBJECT_NAME, this, null, null);
+        }
     }
 
     protected void stopService() throws Exception {
@@ -373,11 +380,16 @@ public class HL7ServerService extends ServiceMBeanSupport implements
 
     public void handleNotification(Notification msg, Object arg1) {
         if (msg.getType().equals(org.jboss.system.server.Server.START_NOTIFICATION_TYPE)) {
-            try {
-                hl7srv.start();
-            } catch (IOException x) {
-                log.error("Start of HL7 Server failed!", x);
-            }
+            startHL7Server();
+            jbossStarted = true;
+        }
+    }
+    
+    private void startHL7Server() {
+        try {
+            hl7srv.start();
+        } catch (IOException x) {
+            log.error("Start of HL7 Server failed!", x);
         }
     }
     

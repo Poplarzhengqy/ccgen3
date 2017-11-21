@@ -81,6 +81,8 @@ public class DcmServerService extends ServiceMBeanSupport implements Notificatio
     private DcmProtocol protocol = DcmProtocol.DICOM;
 
     private TLSConfigDelegate tlsConfig = new TLSConfigDelegate(this);
+    
+    private boolean jbossStarted;
 
     private DicomSecurityDelegate dicomSecurity =
             new DicomSecurityDelegate(this);
@@ -258,16 +260,26 @@ public class DcmServerService extends ServiceMBeanSupport implements Notificatio
         dcmsrv.addHandshakeCompletedListener(tlsConfig.handshakeCompletedListener());
         dcmsrv.setServerSocketFactory(tlsConfig.serverSocketFactory(protocol
                 .getCipherSuites()));
-        server.addNotificationListener(ServerImplMBean.OBJECT_NAME, this, null, null);
+        // Start the DICOM server if this service is started after JBoss is already started (restart of this service)
+        if (jbossStarted) {
+            log.info("Start DICOM server after restart of DcmServer service!");
+            startDicomServer();
+        } else {
+            server.addNotificationListener(ServerImplMBean.OBJECT_NAME, this, null, null);
+        }
     }
     
     public void handleNotification(Notification msg, Object arg1) {
         if (msg.getType().equals(org.jboss.system.server.Server.START_NOTIFICATION_TYPE)) {
-            try {
-                dcmsrv.start();
-            } catch (IOException x) {
-                log.error("Start DICOM Server failed!", x);
-            }
+            startDicomServer();
+        }
+    }
+
+    private void startDicomServer() {
+        try {
+            dcmsrv.start();
+        } catch (IOException x) {
+            log.error("Start DICOM Server failed!", x);
         }
     }
 
