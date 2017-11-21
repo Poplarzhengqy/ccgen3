@@ -18,8 +18,6 @@ ICommunicationProvider, PlainSSHConstants {
 	public TerminalConnection establishConnection(Map<String,String> config, IProgressMonitor progress) {
 		TerminalConnection result = new TerminalConnection();
 
-		//SSHConnectionInfo info = readConnectionInfo(serverAddress);
-
 		SSHConnectionInfo info = readConnectionInfo(config);
 		String host = info.getHostname();
 		if(host == null) 
@@ -60,7 +58,8 @@ ICommunicationProvider, PlainSSHConstants {
 		String keypath = info.getPrivateKeyPath();
 		if(keypath == null || keypath.equalsIgnoreCase("")) 
 		{
-			config.put(PlainSSHConstants.PLAIN_KEY, keypath);			
+			config.put(PlainSSHConstants.PLAIN_KEY, keypath);
+			dirty = true;
 		}
 
 
@@ -97,7 +96,6 @@ ICommunicationProvider, PlainSSHConstants {
 			result.setConfig(config);
 			cachedConnectionInfos.put(id, result);
 			return result;
-			//			return new SSHConnectionInfo(user,hostname,null,null,port,serverAddress);
 
 		}catch (Exception e)
 		{

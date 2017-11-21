@@ -21,7 +21,11 @@ import java.io.OutputStream;
 
 import org.eclipse.core.runtime.Status;
 import org.eclipse.jsch.core.IJSchService;
+import org.eclipse.swt.SWT;
 import org.eclipse.swt.widgets.Display;
+import org.eclipse.swt.widgets.MessageBox;
+import org.eclipse.swt.widgets.Shell;
+import org.eclipse.ui.PlatformUI;
 
 import com.jcraft.jsch.ChannelShell;
 import com.jcraft.jsch.Session;
@@ -37,7 +41,7 @@ public class SshShell implements  ITerminalListener {
 	private static final String PREFERRED_AUTHENTICATION = "PreferredAuthentications";
 	private static final String AUTHENTICATION_PUBLIC_KEY = "publickey";
 	private static final String AUTHENTICATION_PASSWORD = "password";
-	private static final String AUTHENTICATION_Keyboard = "keyboard-interactive";
+	private static final String AUTHENTICATION_KEYBOARD = "keyboard-interactive";
 	
 	ChannelShell channel;
 
@@ -73,18 +77,15 @@ public class SshShell implements  ITerminalListener {
 			else {
 				this.userInfo = sshConnectionInfo;
 				Session session;
-
-//				String keypath = this.userInfo.getPrivateKeyPath();
-//				if(keypath != null && keypath.trim().length() > 0) service.getJSch().addIdentity(keypath);
-				
 				session = service.createSession( this.userInfo.getHostname(),
 						this.userInfo.getPort(),
 						this.userInfo.getUsername() );
 
-				String authtype = "";
+				String authtype = userInfo.getAuthType();
 				String authMethods = session.getConfig(PREFERRED_AUTHENTICATION);
 				session.setUserInfo( this.userInfo );
-				if(authMethods.contains(AUTHENTICATION_PUBLIC_KEY) && !userInfo.getAuthType().equals(PlainSSHConstants.PLAIN_TYPE_PASS))
+
+				if(authtype.equals(PlainSSHConstants.PLAIN_TYPE_PUBKEY) || authtype.equals("") || authtype==null )
 				{
 					// first try to connect via public key only
 					// if this fails, ask the user for a different public/private key
@@ -93,12 +94,11 @@ public class SshShell implements  ITerminalListener {
 					try {
 						session.connect();
 						if(!userInfo.getAuthType().equals(PlainSSHConstants.PLAIN_TYPE_PUBKEY)){
-							//userInfo.setAuthType(PlainSSHConstants.PLAIN_TYPE_PUBKEY);
 							authtype = PlainSSHConstants.PLAIN_TYPE_PUBKEY;
 						}					
 					} 
 					catch (Exception e) {
-						if(publickey && userInfo.promptPrivateKey("")) // TODO boolean aus config abfragen
+						if(userInfo.promptPrivateKey(""))
 						{
 							String keypath = this.userInfo.getPrivateKeyPath();
 							if(keypath != null && keypath.trim().length() > 0) service.getJSch().addIdentity(keypath);
@@ -108,86 +108,112 @@ public class SshShell implements  ITerminalListener {
 									userInfo.getPort(),
 									userInfo.getUsername() );
 							session.setUserInfo(userInfo );
-
-							//session.setConfig(PREFERRED_AUTHENTICATION, authMethods);
 							session.setConfig(PREFERRED_AUTHENTICATION, AUTHENTICATION_PUBLIC_KEY);
 							try {
 								session.connect();
 								if(!userInfo.getAuthType().equals(PlainSSHConstants.PLAIN_TYPE_PUBKEY)){
-									//userInfo.setAuthType(PlainSSHConstants.PLAIN_TYPE_PUBKEY);
 									authtype = PlainSSHConstants.PLAIN_TYPE_PUBKEY;
 								}	
 							} catch (Exception e1) {
-								
-								//userInfo.setAuthType(PlainSSHConstants.PLAIN_TYPE_PASS);
 								authtype = PlainSSHConstants.PLAIN_TYPE_PASS;
 								session = service.createSession( userInfo.getHostname(),
 										userInfo.getPort(),
 										userInfo.getUsername() );
 								session.setUserInfo(userInfo );
 								session.setConfig(PREFERRED_AUTHENTICATION, AUTHENTICATION_PASSWORD);
+								
+								try {
+									session.connect();
+									if(!userInfo.getAuthType().equals(PlainSSHConstants.PLAIN_TYPE_PASS)){
+										authtype = PlainSSHConstants.PLAIN_TYPE_PASS;
+									}	
+								} catch (Exception e2){
+									userInfo.setPasswordInteractiveUsed(true);
+									authtype = PlainSSHConstants.PLAIN_TYPE_INTERACTIVE;
+									session = service.createSession( userInfo.getHostname(),
+											userInfo.getPort(),
+											userInfo.getUsername() );
+									session.setUserInfo(userInfo );
+									session.setConfig(PREFERRED_AUTHENTICATION, AUTHENTICATION_KEYBOARD);
+									try {
+										session.connect();
+										if(!userInfo.getAuthType().equals(PlainSSHConstants.PLAIN_TYPE_INTERACTIVE)){
+											authtype = PlainSSHConstants.PLAIN_TYPE_INTERACTIVE;
+										}	
+									} catch (Exception e3){
+										authtype = "";
+//										Display.getDefault().syncExec( new Runnable() {
+//											public void run() {
+//												Shell shell = PlatformUI.getWorkbench().getDisplay().getActiveShell();
+//												
+//												if (shell == null) shell = new Shell();
+//												MessageBox messageBox = new MessageBox(shell, SWT.ICON_CANCEL | SWT.OK);										        
+//										        messageBox.setText("Authentication cancelled");
+//										        messageBox.setMessage("No authentication method was successful!");
+//											}
+//										} );									
+									}
+								}
 							}
-
 						}
-						else
-						{
-							//userInfo.setAuthType(PlainSSHConstants.PLAIN_TYPE_PASS);
+						else {
 							authtype = PlainSSHConstants.PLAIN_TYPE_PASS;
 							session = service.createSession( userInfo.getHostname(),
 									userInfo.getPort(),
 									userInfo.getUsername() );
 							session.setUserInfo(userInfo );
 							session.setConfig(PREFERRED_AUTHENTICATION, AUTHENTICATION_PASSWORD);
+							
+							try {
+								session.connect();
+								if(!userInfo.getAuthType().equals(PlainSSHConstants.PLAIN_TYPE_PASS)){
+									authtype = PlainSSHConstants.PLAIN_TYPE_PASS;
+								}	
+							} catch (Exception e2){
+								userInfo.setPasswordInteractiveUsed(true);
+								authtype = PlainSSHConstants.PLAIN_TYPE_INTERACTIVE;
+								session = service.createSession( userInfo.getHostname(),
+										userInfo.getPort(),
+										userInfo.getUsername() );
+								session.setUserInfo(userInfo );
+								session.setConfig(PREFERRED_AUTHENTICATION, AUTHENTICATION_KEYBOARD);
+								try {
+									session.connect();
+									if(!userInfo.getAuthType().equals(PlainSSHConstants.PLAIN_TYPE_INTERACTIVE)){
+										authtype = PlainSSHConstants.PLAIN_TYPE_INTERACTIVE;
+									}	
+								} catch (Exception e3){
+									authtype = "";
+									Display.getDefault().syncExec( new Runnable() {
+										public void run() {
+											Shell shell = PlatformUI.getWorkbench().getDisplay().getActiveShell();
+											
+											if (shell == null) shell = new Shell();
+											MessageBox messageBox = new MessageBox(shell, SWT.ICON_CANCEL | SWT.OK);										        
+									        messageBox.setText("Authentication cancelled");
+									        messageBox.setMessage("No authentication method was successful!");
+										}
+									} );									
+								}
+							}
 						}
-						//userInfo.setAuthType(PlainSSHConstants.PLAIN_TYPE_PASS);
-//						session = service.createSession( userInfo.getHostname(),
-//								userInfo.getPort(),
-//								userInfo.getUsername() );
-//						session.setUserInfo(userInfo );
-										
 					}
-
 				}
-				else{
-					//userInfo.setAuthType(PlainSSHConstants.PLAIN_TYPE_PASS);
-					authtype = PlainSSHConstants.PLAIN_TYPE_PASS;
+				else if(authtype.equals(PlainSSHConstants.PLAIN_TYPE_PASS)){
 					session = service.createSession( userInfo.getHostname(),
 							userInfo.getPort(),
 							userInfo.getUsername() );
 					session.setUserInfo(userInfo );
-					//session.setConfig(PREFERRED_AUTHENTICATION, AUTHENTICATION_PASSWORD);
-					//session.setConfig(PREFERRED_AUTHENTICATION, authMethods);
-					session.setConfig(PREFERRED_AUTHENTICATION, AUTHENTICATION_PASSWORD +","+AUTHENTICATION_Keyboard);
-//					try {
-//						session.connect();
-//					} catch (Exception e1) {
-//						
-//						userInfo.setAuthType(PlainSSHConstants.PLAIN_TYPE_PUBKEY);
-//						session = service.createSession( userInfo.getHostname(),
-//								userInfo.getPort(),
-//								userInfo.getUsername() );
-//						session.setUserInfo(userInfo );
-//						session.setConfig(PREFERRED_AUTHENTICATION, AUTHENTICATION_PUBLIC_KEY);
-//					}
-					
+					session.setConfig(PREFERRED_AUTHENTICATION, AUTHENTICATION_PASSWORD);					
 				}
-				//session.setConfig(PREFERRED_AUTHENTICATION, authMethods);
-				
-				
-				//        if ( forwards != null ) {
-				//          for ( IForward forward : forwards ) {
-				//            if (forward.getType() == ForwardType.LOCAL ) {
-				//              session.setPortForwardingL( forward.getBindPort(),
-				//                                          forward.getHostname(),
-				//                                          forward.getPort() );
-				//            } else {
-				//              session.setPortForwardingR( forward.getBindPort(),
-				//                                          forward.getHostname(),
-				//                                          forward.getPort() );
-				//            }
-				//          }
-				//        }
-
+				else{
+					userInfo.setPasswordInteractiveUsed(true);
+					session = service.createSession( userInfo.getHostname(),
+							userInfo.getPort(),
+							userInfo.getUsername() );
+					session.setUserInfo(userInfo );
+					session.setConfig(PREFERRED_AUTHENTICATION, AUTHENTICATION_KEYBOARD);
+				}
 
 				if(!session.isConnected()) session.connect();	
 				

@@ -197,16 +197,27 @@ class SSHConnectionInfo implements UserInfo, UIKeyboardInteractive, PlainSSHCons
 			final String instruction,
 			final String[] prompt,
 			final boolean[] echo ) {
-		String[] result;
-		
-		if ( this.passwordInteractiveUsed ) {
+		String[] result;		
+		if ( this.passwordInteractiveUsed) {
 			Display.getDefault().syncExec( new Runnable() {
 				public void run() {
-					HiddenInputDialog dlg = new HiddenInputDialog(PlatformUI.getWorkbench().getDisplay().
-							getActiveShell(),"Keyboard-Interactive Password",
-							"Please enter your password for user "  + getUsername(),"321", null);
-			          dlg.open();
-					keyboardInteractiveResult = new String[]{dlg.getValue()};
+					keyboardInteractiveResult = new String[prompt.length];
+					for(int i = 0; i < prompt.length; i++){
+						if(echo[i]){
+							InputDialog dlg = new InputDialog(PlatformUI.getWorkbench().getDisplay().
+									getActiveShell(),"Keyboard-Interactive",
+									"Please, enter parameter " + prompt[i], "321", null);
+					          dlg.open();
+					          keyboardInteractiveResult[i] = dlg.getValue();
+						}
+						else{
+							HiddenInputDialog dlg = new HiddenInputDialog(PlatformUI.getWorkbench().getDisplay().
+									getActiveShell(),"Keyboard-Interactive",
+									"Please, enter parameter " + prompt[i], "321", null);
+					          dlg.open();
+					          keyboardInteractiveResult[i] = dlg.getValue();
+						}
+					}					
 				}
 			} );
 			result = this.keyboardInteractiveResult;
@@ -227,7 +238,7 @@ class SSHConnectionInfo implements UserInfo, UIKeyboardInteractive, PlainSSHCons
 		Display.getDefault().syncExec( new Runnable() {
 			public void run() {
 				FileDialog dialog = new FileDialog(new Shell(), SWT.OPEN);
-				dialog.setText("Choose your Private Key(e.g. ~/.ssh/id_dsa)");
+				dialog.setText("Choose a private key for logging in or press Cancel to log in via username/password");
 				privateKeyPath = dialog.open();
 				if (privateKeyPath != null && privateKeyPath.length()>0){
 					setPrivateKeyPath(privateKeyPath);
