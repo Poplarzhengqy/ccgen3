@@ -183,24 +183,21 @@ abstract class DcmObjectImpl implements DcmObject {
                 .vm(getSpecificCharacterSet()) : -1;
     }
 
-    private int adjustPrivateTag(int tag, boolean create)
+    private int tagOfCreatorID(String creatorID, int tag, boolean create)
             throws DcmValueException {
-        String creatorID = getPrivateCreatorID();
-        // no adjustments, if creatorID not set
-        if (creatorID == null) {
-            return tag;
-        }
         int gr = tag & 0xffff0000;
-        int el = 0x10;
-        int index = indexOf(gr | el);
+        int tagOfCreatorID = gr | 0x10;
+        int index = indexOf(tagOfCreatorID);
         if (index >= 0) {
             DcmElement elm = (DcmElement) list.get(index);
-            while (++index < list.size()) {
+            final int size = list.size();
+            while (++index < size) {
                 if (creatorID.equals(elm.getString(getSpecificCharacterSet()))) {
-                    return gr | (el << 8) | (tag & 0xff);
+                    return elm.tag();
                 }
+                tagOfCreatorID = elm.tag() + 1;
                 elm = (DcmElement) list.get(index);
-                if (elm.tag() != (gr | ++el)) {
+                if ((elm.tag() & 0xffffff00) != gr) {
                     break;
                 }
             }
@@ -208,9 +205,22 @@ abstract class DcmObjectImpl implements DcmObject {
         if (!create) {
             return 0;
         }
-        doPut(StringElement.createLO(gr | el, creatorID,
+        doPut(StringElement.createLO(tagOfCreatorID, creatorID,
                 getSpecificCharacterSet()));
-        return gr | (el << 8) | (tag & 0xff);
+        return tagOfCreatorID;
+    }
+
+    private int adjustPrivateTag(int tag, boolean create)
+            throws DcmValueException {
+        String creatorID = getPrivateCreatorID();
+        // no adjustments, if creatorID not set
+        if (creatorID == null) {
+            return tag;
+        }
+        int tagOfCreatorID = tagOfCreatorID(creatorID, tag, create);
+        return  (tagOfCreatorID == 0)
+                ? 0
+                : (tag & 0xffff00ff) | ((tagOfCreatorID & 0xff) << 8);
     }
 
     public DcmElement get(int tag) {
@@ -2612,7 +2622,9 @@ abstract class DcmObjectImpl implements DcmObject {
                 && (dstCharSet != null 
                         ? !dstCharSet.contains(srcCharSet)
                         : srcCharSet != null && !srcCharSet.isAscii());
-        ByteBuffer value;
+        int tagOfCreatorID = 0;
+        dcmObj.setPrivateCreatorID(null);
+        setPrivateCreatorID(null);
         for (Iterator it = dcmObj.iterator(); it.hasNext();) {
             DcmElement el = (DcmElement) it.next();
             int tag = el.tag();
@@ -2620,11 +2632,30 @@ abstract class DcmObjectImpl implements DcmObject {
                     && tag == Tags.SpecificCharacterSet) {
                 continue;
             }
+            if (Tags.isPrivateCreatorDataElement(tag)) {
+                try {
+                    // prevent duplicate and overwrite of existing private creator id
+                    if (contains(tag) || tagOfCreatorID(
+                            el.getString(srcCharSet), tag, false) != 0)
+                        continue;
+                } catch (DcmValueException e) {
+                    // copy illegal Private Creator Data Element verbatim
+                }
+            } else if (Tags.isPrivate(tag)) {
+                int tagOfCreatorID2 = (tag & 0xffff0000) | ((tag & 0xff00) >> 8);
+                if (tagOfCreatorID != tagOfCreatorID2) {
+                    setPrivateCreatorID(dcmObj.getString(tagOfCreatorID2));
+                    tagOfCreatorID = tagOfCreatorID2;
+                }
+            } else {
+                setPrivateCreatorID(null);
+            }
             if (el.isEmpty()) {
                 putXX(tag, el.vr());
             } else {
                 DcmElement sq;
                 Dataset item;
+                ByteBuffer value;
                 switch (el.vr()) {
                 case VRs.SQ:
                     sq = itemTreatment != REPLACE_ITEMS ? get(tag) : null;
@@ -2651,34 +2682,23 @@ abstract class DcmObjectImpl implements DcmObject {
                     }
                 default:
                     value = el.getByteBuffer();
-                    if(Tags.isPrivateCreatorDataElement(tag)) {
-                        String privateCreatorID;
-                        try {
-                            privateCreatorID = el.getString(
-                                    dcmObj.getSpecificCharacterSet());
-                        } catch (DcmValueException e) {
-                            // StringElement.getString does not throw DcmValueException
-                            throw new RuntimeException(e);
+                    if (transcodeStringValues) {
+                        switch (el.vr()) {
+                        case VRs.LO:
+                        case VRs.LT:
+                        case VRs.PN:
+                        case VRs.SH:
+                        case VRs.ST:
+                        case VRs.UT:
+                            value = transcodeString(value, srcCharSet, dstCharSet);
                         }
-                        setPrivateCreatorID(privateCreatorID);
-                    } else {
-                        if (transcodeStringValues) {
-                            switch (el.vr()) {
-                            case VRs.LO:
-                            case VRs.LT:
-                            case VRs.PN:
-                            case VRs.SH:
-                            case VRs.ST:
-                            case VRs.UT:
-                                value = transcodeString(value, srcCharSet, dstCharSet);
-                            }
-                        }
-                        putXX(tag, el.vr(), value);
                     }
+                    putXX(tag, el.vr(), value);
                     break;
                 }
             }
         }
+        setPrivateCreatorID(null);
     }
 
     private ByteBuffer transcodeString(ByteBuffer value,

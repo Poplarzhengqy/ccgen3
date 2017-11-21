@@ -614,6 +614,28 @@ public class DatasetTest extends TestCase {
                 CREATOR2, TAG_00090020, VALUE2);
     }
 
+    public void testPutAllPrivateDiffCreatorEqualGroup2() {
+        Dataset ds2 = DcmObjectFactory.getInstance().newDataset();
+
+        ds2.setPrivateCreatorID(CREATOR1);
+        ds2.putSH(TAG_00090010, VALUE1);
+        ds2.putSH(TAG_00090020, VALUE2);
+
+        ds2.setPrivateCreatorID(CREATOR2);
+        ds2.putSH(TAG_00090010, VALUE2);
+        ds2.putSH(TAG_00090020, VALUE1);
+
+        ds.putAll(ds2);
+
+        ds.setPrivateCreatorID(CREATOR1);
+        assertEquals(VALUE1, ds.getString(TAG_00090010));
+        assertEquals(VALUE2, ds.getString(TAG_00090020));
+
+        ds.setPrivateCreatorID(CREATOR2);
+        assertEquals(VALUE2, ds.getString(TAG_00090010));
+        assertEquals(VALUE1, ds.getString(TAG_00090020));
+    }
+
     public void testPutAllPrivateEqualCreatorDiffGroup() {
         testPutAllPrivate(CREATOR1, TAG_00090010, VALUE1,
                 CREATOR1, TAG_00110020, VALUE2);
