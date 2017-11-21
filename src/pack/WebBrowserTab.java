@@ -19,6 +19,8 @@ import static org.makagiga.commons.UI._;
 import java.awt.Component;
 import java.awt.print.Printable;
 import java.awt.print.PrinterException;
+import java.beans.PropertyChangeEvent;
+import java.beans.PropertyChangeListener;
 import java.net.URI;
 import java.text.MessageFormat;
 import javax.swing.JComponent;
@@ -43,7 +45,6 @@ import org.makagiga.web.browser.SwingWebBrowser;
 import org.makagiga.web.browser.WebBrowser;
 import org.makagiga.web.browser.WebBrowserPanel;
 
-// TODO: 2.0: show page title
 /**
  * @since 4.0
  */
@@ -58,6 +59,7 @@ implements
 
 	// private
 
+	private PropertyChangeListener pcl;
 	private static final String SHARED = "org.makagiga.tabs.WebBrowserTab.SHARED";
 	
 	// public
@@ -72,13 +74,21 @@ implements
 
 	public WebBrowserTab(final WebBrowserPanel webBrowserPanel) {
 		setMetaInfo(_("Browser"), MIcon.small("ui/internet"));
-		//!!!change meta info name on title change
 		setCore(webBrowserPanel);
 
 		WebBrowser browser = getWebBrowser();
 		browser.getToolBar().setVisible(false);
 		initializeFont();
 		addCenter(core);
+		
+		pcl = new PropertyChangeListener() {
+			@Override
+			public void propertyChange(final PropertyChangeEvent e) {
+				if (TK.isProperty(e, WebBrowser.PROGRESS_PROPERTY, 100))
+					setTabTitle(getWebBrowser().getDocumentDisplayTitle(_("Browser")));
+			}
+		};
+		browser.addPropertyChangeListener(pcl);
 	}
 
 	public static WebBrowserTab getInstance() {
@@ -123,9 +133,7 @@ implements
 
 	@Override
 	public String getPrintTitle() {
-		String title = getWebBrowser().getDocumentTitle();
-
-		return (title == null) ? super.getPrintTitle() : title;
+		return getWebBrowser().getDocumentDisplayTitle(null);
 	}
 
 	public WebBrowser getWebBrowser() {
@@ -134,7 +142,12 @@ implements
 
 	@Override
 	public void onClose() {
-		Component component = getWebBrowser().getComponent();
+		WebBrowser webBrowser = getWebBrowser();
+		if (pcl != null) {
+			webBrowser.removePropertyChangeListener(pcl);
+			pcl = null;
+		}
+		Component component = webBrowser.getComponent();
 		if (component instanceof JTextComponent)
 			TextUtils.uninstallSearchHighlighter((JTextComponent)component);
 		core.dispose();

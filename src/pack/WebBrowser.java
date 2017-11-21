@@ -20,6 +20,8 @@ import java.awt.Component;
 import java.awt.Window;
 import java.awt.print.Printable;
 import java.awt.print.PrinterException;
+import java.beans.PropertyChangeListener;
+import java.beans.PropertyChangeSupport;
 import java.io.Serializable;
 import java.net.URI;
 import java.text.MessageFormat;
@@ -27,6 +29,7 @@ import java.util.EventListener;
 import java.util.EventObject;
 import java.util.Objects;
 import javax.swing.event.EventListenerList;
+import javax.swing.event.SwingPropertyChangeSupport;
 
 import org.makagiga.commons.Flags;
 import org.makagiga.commons.HistoryManager;
@@ -68,7 +71,18 @@ implements
 
 	public static final String HONOR_DISPLAY_PROPERTIES_PROPERTY = "org.makagiga.web.browser.WebBrowser.HONOR_DISPLAY_PROPERTIES_PROPERTY";
 	public static final String IMAGE_FACTORY_PROPERTY = "org.makagiga.web.browser.WebBrowser.IMAGE_FACTORY_PROPERTY";
+
+	/**
+	 * @since 4.6
+	 */
+	public static final String PROGRESS_PROPERTY = "org.makagiga.web.browser.WebBrowser.PROGRESS_PROPERTY";
+
 	public static final String SYNCHRONOUS_IMAGE_LOADING_PROPERTY = "org.makagiga.web.browser.WebBrowser.SYNCHRONOUS_IMAGE_LOADING_PROPERTY";
+	
+	/**
+	 * @since 4.6
+	 */
+	public static final String TITLE_PROPERTY = "org.makagiga.web.browser.WebBrowser.TITLE_PROPERTY";
 
 	// private
 
@@ -77,6 +91,7 @@ implements
 	private HistoryManager<HistoryItem> historyManager = new HistoryManager<>();
 	private MToolBar toolBar;
 	private OpenLinkMode openLinkMode = OpenLinkMode.EXTERNAL_BROWSER;
+	private SwingPropertyChangeSupport pcs;
 	private URIHandler defaultURIHandler;
 	private URIHandler uriHandler;
 	
@@ -102,6 +117,20 @@ implements
 		return eventListenerList.getListeners(LinkListener.class);
 	}
 	
+	/**
+	 * @since 4.6
+	 */
+	public void addPropertyChangeListener(final PropertyChangeListener l) {
+		pcs.addPropertyChangeListener(l);
+	}
+
+	/**
+	 * @since 4.6
+	 */
+	public void removePropertyChangeListener(final PropertyChangeListener l) {
+		pcs.removePropertyChangeListener(l);
+	}
+
 	public abstract MMenu createEditMenu();
 
 	/**
@@ -130,7 +159,13 @@ implements
 			)
 				return;
 
-			defaultURIHandler.handleURI(this, uri, updateHistory);
+			setProperty(PROGRESS_PROPERTY, 0);
+			try {
+				defaultURIHandler.handleURI(this, uri, updateHistory);
+			}
+			finally {
+				setProperty(PROGRESS_PROPERTY, 100);
+			}
 		}
 		catch (Exception exception) {
 			handleError(exception);
@@ -147,10 +182,21 @@ implements
 	}
 
 	/**
+	 * @since 4.6
+	 */
+	public String getDocumentDisplayTitle(final String subtitle) {
+		String s = TK.rightSqueeze(Objects.toString(getDocumentTitle(), "(" + _("Untitled") + ")"), 50);
+
+		return (subtitle != null) ? s + " - " + subtitle : s;
+	}
+
+	/**
 	 * Returns the current page title or {@code null}.
+	 *
+	 * @see #getDocumentDisplayTitle(String)
 	 */
 	public abstract String getDocumentTitle();
-
+	
 	public HistoryManager<HistoryItem> getHistoryManager() { return historyManager; }
 
 	/**
@@ -229,12 +275,15 @@ implements
 			historyManager = null;
 		}
 		toolBar = null;
+		pcs = null;
 		uriHandler = null;
 	}
 	
 	// protected
 	
 	protected WebBrowser() {
+		pcs = new SwingPropertyChangeSupport(this, true);
+	
 		defaultURIHandler = new URIHandler() {
 			@Override
 			public boolean handleURI(final WebBrowser webBrowser, final URI uri, final boolean updateHistory) throws Exception {
@@ -287,6 +336,11 @@ implements
 
 		return (result == null) ? getOpenLinkMode() : result;
 	}
+	
+	/**
+	 * @since 4.6
+	 */
+	protected PropertyChangeSupport getPropertyChangeSupport() { return pcs; }
 
 	protected void handleError(final Throwable t) {
 		MLogger.exception(t);

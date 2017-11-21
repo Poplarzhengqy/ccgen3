@@ -53,6 +53,7 @@ public class SwingWebBrowser extends WebBrowser {
 	private boolean synchronousImageLoading;
 	private HTMLViewFactory.ImageDownloader imageDownloader;
 	private HTMLViewFactory.ImageFactory imageFactory;
+	private int progress;
 	private MHTMLViewer viewer;
 	
 	// public
@@ -112,9 +113,7 @@ public class SwingWebBrowser extends WebBrowser {
 
 	@Override
 	public String getDocumentTitle() {
-		Object title = viewer.getDocument().getProperty(Document.TitleProperty);
-
-		return Objects.toString(title, null);
+		return Objects.toString(getProperty(TITLE_PROPERTY), null);
 	}
 
 	@Override
@@ -135,19 +134,18 @@ public class SwingWebBrowser extends WebBrowser {
 	@Override
 	@edu.umd.cs.findbugs.annotation.SuppressWarnings("URV_UNRELATED_RETURN_VALUES")
 	public Object getProperty(final String name) {
-		if (FONT_SIZE_PROPERTY.equals(name))
-			return UI.getFont(viewer).getSize();
-
-		if (HONOR_DISPLAY_PROPERTIES_PROPERTY.equals(name))
-			return Boolean.TRUE.equals(viewer.getClientProperty(MHTMLViewer.HONOR_DISPLAY_PROPERTIES));
-
-		if (IMAGE_FACTORY_PROPERTY.equals(name))
-			return imageFactory;
-
-		if (SYNCHRONOUS_IMAGE_LOADING_PROPERTY.equals(name))
-			return synchronousImageLoading;
-
-		return false;
+		if (name == null)
+			return null;
+		
+		switch (name) {
+			case FONT_SIZE_PROPERTY: return UI.getFont(viewer).getSize();
+			case HONOR_DISPLAY_PROPERTIES_PROPERTY: return Boolean.TRUE.equals(viewer.getClientProperty(MHTMLViewer.HONOR_DISPLAY_PROPERTIES));
+			case IMAGE_FACTORY_PROPERTY: return imageFactory;
+			case PROGRESS_PROPERTY: return progress;
+			case SYNCHRONOUS_IMAGE_LOADING_PROPERTY: return synchronousImageLoading;
+			case TITLE_PROPERTY: return viewer.getDocument().getProperty(Document.TitleProperty);
+			default: return null;
+		}
 	}
 
 	@Override
@@ -162,8 +160,19 @@ public class SwingWebBrowser extends WebBrowser {
 			case IMAGE_FACTORY_PROPERTY:
 				imageFactory = (HTMLViewFactory.ImageFactory)value;
 				break;
+			case PROGRESS_PROPERTY:
+				int oldValue = progress;
+				int newValue = (Integer)value;
+				if (newValue != oldValue) {
+					progress = newValue;
+					getPropertyChangeSupport().firePropertyChange(name, oldValue, newValue);
+				}
+				break;
 			case SYNCHRONOUS_IMAGE_LOADING_PROPERTY:
 				synchronousImageLoading = (Boolean)value;
+				break;
+			case TITLE_PROPERTY:
+				viewer.getDocument().putProperty(Document.TitleProperty, (String)value);
 				break;
 		}
 	}
@@ -174,7 +183,9 @@ public class SwingWebBrowser extends WebBrowser {
 			FONT_SIZE_PROPERTY.equals(name) ||
 			HONOR_DISPLAY_PROPERTIES_PROPERTY.equals(name) ||
 			IMAGE_FACTORY_PROPERTY.equals(name) ||
-			SYNCHRONOUS_IMAGE_LOADING_PROPERTY.equals(name);
+			PROGRESS_PROPERTY.equals(name) ||
+			SYNCHRONOUS_IMAGE_LOADING_PROPERTY.equals(name) ||
+			TITLE_PROPERTY.equals(name);
 	}
 
 	@Override
@@ -195,7 +206,7 @@ public class SwingWebBrowser extends WebBrowser {
 			flags,
 			header,
 			footer,
-			getDocumentTitle()
+			getDocumentDisplayTitle(null)
 		);
 
 		return (result == TextPrintInfo.PrintResult.COMPLETE);
@@ -250,10 +261,13 @@ public class SwingWebBrowser extends WebBrowser {
 	private void loadingFinished() {
 		if (viewer != null)
 			UI.setWaitCursor(viewer, false);
+		setProperty(PROGRESS_PROPERTY, 100);
 	}
 
 	private void loadingStarted(final URI baseURI) {
 		stop();
+
+		setProperty(PROGRESS_PROPERTY, 0);
 
 		// after stop()
 		Document doc = viewer.getDocument();

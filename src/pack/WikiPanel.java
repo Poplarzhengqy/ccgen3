@@ -19,6 +19,7 @@ import static org.makagiga.commons.UI._;
 import java.awt.BorderLayout;
 import java.awt.Dimension;
 import java.awt.Window;
+import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
 import java.io.IOException;
 import java.lang.ref.WeakReference;
@@ -116,8 +117,6 @@ public class WikiPanel extends WebBrowserPanel {
 
 				//!!!scroll to ref
 				
-				//System.out.println("PATH:"+path);//!!!
-
 				String ref = uri.getFragment();
 				
 				if (ref != null) {
@@ -432,10 +431,7 @@ public class WikiPanel extends WebBrowserPanel {
 
 		html.append(parsedHTML);
 
-		//String oldPageTitle = getTitle();
 		getWebBrowser().setDocumentContent(html.toString(), uri);
-/*!!!		String newPageTitle = getTitle();
-		firePropertyChange(WikiPanel.PAGE_TITLE_PROPERTY, oldPageTitle, newPageTitle);*/
 	}
 
 	private void updateComponents() {//!!!disable/enable during load
@@ -466,14 +462,14 @@ public class WikiPanel extends WebBrowserPanel {
 			addCenter(panel);
 			setSize(UI.WindowSize.MEDIUM);
 
-/*			pcl = new PropertyChangeListener() {
+			pcl = new PropertyChangeListener() {
 				@Override
 				public void propertyChange(final PropertyChangeEvent e) {
-					if (WikiPanel.PAGE_TITLE_PROPERTY.equals(e.getPropertyName()))
-						dialog.setTitle((String)e.getNewValue());!!!
+					if (TK.isProperty(e, WebBrowser.PROGRESS_PROPERTY, 100))
+						setTitle(getWikiPanel().getWebBrowser().getDocumentDisplayTitle(null));
 				}
 			};
-			panel.getWebBrowser().addPropertyChangeListener(pcl);*/
+			panel.getWebBrowser().addPropertyChangeListener(pcl);
 		}
 		
 		@Override
@@ -493,7 +489,7 @@ public class WikiPanel extends WebBrowserPanel {
 			
 			WikiPanel panel = getWikiPanel();
 			if (panel != null) {
-				//panel.getWebBrowser().removePropertyChangeListener(pcl);
+				panel.getWebBrowser().removePropertyChangeListener(pcl);
 				pcl = null;
 			}
 		}
@@ -579,12 +575,5 @@ public class WikiPanel extends WebBrowserPanel {
 		}
 
 	}
-
-/*		@Override
-		public String getTitle() {
-			String s = super.getTitle();
-
-			return TK.isEmpty(s) ? "Wiki" : s;
-		}!!!*/
 
 }
