@@ -67,6 +67,7 @@ import org.makagiga.commons.TK;
 import org.makagiga.commons.UI;
 import org.makagiga.commons.WTFError;
 import org.makagiga.commons.annotation.InvokedFromConstructor;
+import org.makagiga.commons.annotation.Obsolete;
 import org.makagiga.commons.category.CategoryListEditor;
 import org.makagiga.commons.category.CategoryListRenderer;
 import org.makagiga.commons.category.CategoryManager;
@@ -259,8 +260,21 @@ public class TaskTable extends MTable<TaskModel> {
 	/**
 	 * (MODEL)
 	 */
+	@Obsolete
 	public void addTask(final Task task) {
 		getModel().addRow(task);
+	}
+
+	/**
+	 * (MODEL/VIEW)
+	 *
+	 * @since 4.4
+	 */
+	public void addTask(final Task task, final boolean select) {
+		getModel().addRow(task);
+
+		if (select)
+			selectRow(convertRowIndexToView(getModel().getRowCount() - 1));
 	}
 
 	/**
@@ -282,9 +296,7 @@ public class TaskTable extends MTable<TaskModel> {
 		final boolean select
 	) {
 		Task task = new Task(summary, priority, complete, dateTime, startDateTime, completeDateTime);
-		addTask(task);
-		if (select)
-			selectRow(convertRowIndexToView(getModel().getRowCount() - 1));
+		addTask(task, select);
 		
 		return task;
 	}

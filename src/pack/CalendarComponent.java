@@ -174,7 +174,9 @@ public class CalendarComponent extends MCalendarPanel {
 				sourceMenu.removeAll();
 				sourceMenu.addTitle(_("Todo Lists"));
 				
-				MDate date = getValue();
+				MCalendar cal = getValue().toCalendar();
+				cal.setTime(MCalendar.now());
+				MDate date = cal.toDate();
 				for (MetaInfo i : hits) {
 					if (i.canModify())
 						sourceMenu.add(new AddTaskAction(i, date));

@@ -18,6 +18,7 @@ import static org.makagiga.commons.UI._;
 
 import java.awt.AlphaComposite;
 import java.awt.Color;
+import java.awt.Dimension;
 import java.awt.Graphics2D;
 import java.awt.Image;
 import java.awt.datatransfer.DataFlavor;
@@ -41,22 +42,27 @@ import org.makagiga.commons.UI;
 import org.makagiga.commons.color.MColorIcon;
 import org.makagiga.commons.preview.DefaultPreview;
 import org.makagiga.commons.preview.Preview;
-import org.makagiga.commons.swing.Input;
+import org.makagiga.commons.swing.MDialog;
 import org.makagiga.commons.swing.MStatusBar;
 import org.makagiga.desktop.Widget;
 import org.makagiga.editors.Editor;
 import org.makagiga.editors.EditorPlugin;
 import org.makagiga.fs.MetaInfo;
 import org.makagiga.plugins.PluginException;
-import org.makagiga.todo.Priority;
+import org.makagiga.todo.Column;
 import org.makagiga.todo.Task;
 import org.makagiga.todo.TaskList;
 import org.makagiga.todo.TaskModel;
+import org.makagiga.todo.TaskPropertiesPanel;
 import org.makagiga.todo.TaskSelection;
 import org.makagiga.tree.Tree;
 
 /** The "Todo" editor plugin. */
 public final class TodoEditorPlugin extends EditorPlugin {
+
+	// private
+	
+	private static Dimension lastNewTaskDialogSize;
 
 	// public
 	
@@ -118,17 +124,29 @@ public final class TodoEditorPlugin extends EditorPlugin {
 
 		if (core == null)
 			return;
-			
-		String summary = new Input.GetTextBuilder()
-			.text("")
-			.label(_("Summary"))
-			.title(_("Add a New Task for This Day"))
-			.icon("ui/newfile")
-			.autoCompletion("newtask")
-		.exec(core);
 		
-		if (summary != null)
-			core.addTask(summary, Priority.DEFAULT, 0, date.getTime(), MDate.currentTime(), 0, true);
+		Task task = new Task();
+		task.setDateTime(date);
+		
+		TaskPropertiesPanel taskProperties = new TaskPropertiesPanel(
+			task,
+			Column.SUMMARY, Column.DATE_TIME, Column.PRIORITY
+		);
+
+		MDialog dialog = new MDialog(UI.windowFor(core), _("Add a New Task for This Day"), "ui/newfile", MDialog.STANDARD_DIALOG);
+		dialog.changeButton(dialog.getOKButton(), _("Create"), "ui/newfile");
+		dialog.addCenter(taskProperties);
+		if (lastNewTaskDialogSize != null)
+			dialog.setSize(lastNewTaskDialogSize);
+		else
+			dialog.pack();
+		
+		boolean ok = dialog.exec();
+		lastNewTaskDialogSize = dialog.getSize();
+		if (ok) {
+			taskProperties.apply();
+			core.addTask(task, true);
+		}
 	}
 
 	@Override

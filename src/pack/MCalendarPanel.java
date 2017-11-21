@@ -951,6 +951,7 @@ implements
 
 		// private
 
+		private boolean mouseHover;
 		private final int day;
 		private final int row;
 		private final MArrayList<Item<?>> itemList = new MArrayList<>();//!!!opt
@@ -1040,9 +1041,10 @@ implements
 
 			// day number
 
+			Color shadowColor = (paintItemList && !print) ? bg : null;
+			Color textColor = Color.BLACK;
 			if (paintItemList)
-				g.setAlpha(0.20f);
-			g.setColor(Color.BLACK);
+				g.setAlpha(mouseHover ? 0.40f : 0.20f);
 			
 			int dayStyle = !print && MCalendarPanel.this.isToday(day) ? (Font.ITALIC + Font.BOLD) : Font.PLAIN;
 			g.setFont(font.deriveFont(dayStyle, TK.limit(getHeight() / 2, 12, 32)));
@@ -1051,6 +1053,13 @@ implements
 			String s = getText();
 			int x = getWidth() - fm.stringWidth(s) - 4;
 			int y = fm.getAscent() + 2;
+
+			if (shadowColor != null) {
+				g.setColor(shadowColor);
+				g.drawString(s, x + 2, y + 2);
+			}
+
+			g.setColor(textColor);
 			g.drawString(s, x, y);
 			
 			// actual item list
@@ -1146,13 +1155,17 @@ implements
 			addMouseListener(new MMouseAdapter() {
 				@Override
 				public void mouseEntered(final MouseEvent e) {
-					DayButton.this.setPopupMenuArrowPainted(true);
-					DayButton.this.setPopupMenuEnabled(true);
+					DayButton b = DayButton.this;
+					b.setMouseHover(true);
+					b.setPopupMenuArrowPainted(true);
+					b.setPopupMenuEnabled(true);
 				}
 				@Override
 				public void mouseExited(final MouseEvent e) {
-					DayButton.this.setPopupMenuArrowPainted(false);
-					DayButton.this.setPopupMenuEnabled(false);
+					DayButton b = DayButton.this;
+					b.setMouseHover(false);
+					b.setPopupMenuArrowPainted(false);
+					b.setPopupMenuEnabled(false);
 				}
 				@Override
 				public void popupTrigger(final MouseEvent e) {
@@ -1169,6 +1182,13 @@ implements
 				
 					break; // for
 				}
+			}
+		}
+		
+		private void setMouseHover(final boolean newMouseHover) {
+			if (newMouseHover != this.mouseHover) {
+				this.mouseHover = newMouseHover;
+				this.repaint();
 			}
 		}
 
