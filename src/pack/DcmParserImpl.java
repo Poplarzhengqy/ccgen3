@@ -103,6 +103,8 @@ final class DcmParserImpl implements org.dcm4che.data.DcmParser {
     private String tsUID = null;
     
     private ByteArrayOutputStream unBuf = null;
+
+    private boolean fixInvalidExposureDoseSeq;
     
     public DcmParserImpl(InputStream in) {
         this.in = in instanceof DataInput ? (DataInput)in
@@ -404,6 +406,23 @@ final class DcmParserImpl implements org.dcm4che.data.DcmParser {
                         rPos += 4;
                         rLen = bb12.getInt(8);
                         retval = 12;
+                        if (rVR == VRs.OB)
+                            switch (rTag) {
+                            case Tags.CTDIPhantomTypeCodeSeq:
+                                if (log.isDebugEnabled())
+                                    log.debug("Detect invalid VR 'OB' of " + Tags.toString(rTag)
+                                            + " - switch Transfer Syntax to IVR_LE");
+                                setDcmDecodeParam(DcmDecodeParam.IVR_LE);
+                                fixInvalidExposureDoseSeq = true;
+                            case Tags.AcquisitionType:
+                            case Tags.XRayTubeCurrentInuA:
+                            case Tags.SingleCollimationWidth:
+                            case Tags.TotalCollimationWidth:
+                                rVR = vrMap.lookup(rTag);
+                                if (log.isDebugEnabled())
+                                    log.debug("Replace invalid VR 'OB' of "
+                                            + Tags.toString(rTag) + " by " + VRs.toString(rVR));
+                         }
                     }
                 }
         }
@@ -627,7 +646,7 @@ final class DcmParserImpl implements org.dcm4che.data.DcmParser {
                         default:
                             throw new DcmParseException(logMsg());
                     }                    
-                    lread += parseSequence(rVR, rLen);
+                    lread += parseSequence(rTag, rVR, rLen);
                 } else {
                     if (rLen < 0 || rLen > maxValLen)
                         throw new DcmParseException(logMsg()
@@ -648,7 +667,7 @@ final class DcmParserImpl implements org.dcm4che.data.DcmParser {
         return lread;
     }
 
-    private long parseSequence(int vr, int sqLen) throws IOException {
+    private long parseSequence(int tag, int vr, int sqLen) throws IOException {
         if (log.isDebugEnabled()) {
             log.debug("rPos:" + rPos + "," + VRs.toString(vr)
                     + " #" + sqLen);
@@ -694,6 +713,12 @@ final class DcmParserImpl implements org.dcm4che.data.DcmParser {
 //        rLen = sqLen; // restore rLen value
         if (handler != null && unBuf == null)
             handler.endSequence(sqLen);
+        if (fixInvalidExposureDoseSeq && tag == Tags.ExposureDoseSeq) {
+            if (log.isDebugEnabled())
+                log.debug("Switch Transfer Syntax back to EVR_LE");
+            setDcmDecodeParam(DcmDecodeParam.EVR_LE);
+            fixInvalidExposureDoseSeq = false;
+        }
         return lread;
     }
             
