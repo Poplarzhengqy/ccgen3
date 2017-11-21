@@ -117,6 +117,8 @@ public class CreateOrEditAETPage extends SecureWebPage {
         form.add(new Label("type.label", new StringResourceModel("ae.type.label", CreateOrEditAETPage.this, null, new Object[]{1} ) ) );
         AELicenseProviderSPI provider = AELicenseProviderManager.get(null).getProvider();
         List<String> aetTypes = new ArrayList<String>(provider.getAETypes(WebCfgDelegate.getInstance().getAETTypes()));
+        if (oldType != null && !aetTypes.contains(oldType))
+            aetTypes.add(oldType);
         boolean nullAeTypeAllowed = aetTypes.remove(null);
         DropDownChoice<String> typeSelection = null;
         form.add((typeSelection  = new DropDownChoice<String>("type-selection",
