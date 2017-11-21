@@ -44,8 +44,12 @@ ICommunicationProvider, PlainSSHConstants {
 			dirty = true;
 		}
 
+		boolean publickey_type = true;
+//		if(config.get(PlainSSHConstants.PLAIN_TYPE).equals(PlainSSHConstants.PLAIN_TYPE_PASS)){
+//			publickey_type = false;
+//		}
 
-//		if(config.get(PlainSSHConstants.PLAIN_TYPE).equals("")){
+//		if(!config.get(PlainSSHConstants.PLAIN_TYPE).equals("")){
 //			boolean okPressed = info.promptPlainType();
 //			if(!okPressed) return null;
 //			config.put(PlainSSHConstants.PLAIN_TYPE, info.getAuthType());
@@ -56,8 +60,7 @@ ICommunicationProvider, PlainSSHConstants {
 		String keypath = info.getPrivateKeyPath();
 		if(keypath == null || keypath.equalsIgnoreCase("")) 
 		{
-			config.put(PlainSSHConstants.PLAIN_KEY, keypath);
-			
+			config.put(PlainSSHConstants.PLAIN_KEY, keypath);			
 		}
 
 
@@ -68,7 +71,7 @@ ICommunicationProvider, PlainSSHConstants {
 		}
 
 		SshShell shell = new SshShell();
-		IBidirectionalConnection connection = shell.createConnection(info);
+		IBidirectionalConnection connection = shell.createConnection(info, publickey_type);
 		if(connection == null)
 		{
 			// authentication seemingly failed 

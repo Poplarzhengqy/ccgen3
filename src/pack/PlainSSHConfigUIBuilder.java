@@ -70,6 +70,9 @@ public class PlainSSHConfigUIBuilder extends BasicConfigUIBuilder implements Pla
 		else if(key.equals(PLAIN_TYPE_PUBKEY)){
 			return "Public-Key";
 		}
+		else if(key.equals(PLAIN_TYPE_INTERACTIVE)){
+			return "Keyboard-Interactive";
+		}
 		return key;
 	}
 
@@ -80,7 +83,7 @@ public class PlainSSHConfigUIBuilder extends BasicConfigUIBuilder implements Pla
 		for(String key : getTextFields().keySet()){
 			boolean dirty = true;
 			Text text = getTextFields().get(key);
-			if(key.equals(PLAIN_KEY) && type.equals(PLAIN_TYPE_PASS)){
+			if(key.equals(PLAIN_KEY)){// && type.equals(PLAIN_TYPE_PASS)){
 				dirty=false;
 			}
 			if (dirty && text.getText().length() == 0 && type.equals(PLAIN_TYPE_PUBKEY)) {
@@ -163,7 +166,7 @@ public class PlainSSHConfigUIBuilder extends BasicConfigUIBuilder implements Pla
 	    // Assuming parent is grid layout
 	    //group.setLayoutData(new GridData(GridData.FILL_BOTH));
 	    
-	    group.setLayout(new GridLayout(4, false));
+	    group.setLayout(new GridLayout(3, false));
 	    group.setLayoutData(gridData);
 	    //gridData.horizontalSpan = 4;
 
@@ -186,60 +189,67 @@ public class PlainSSHConfigUIBuilder extends BasicConfigUIBuilder implements Pla
 	        	  Control[] controls = group.getChildren();
 	        	  enableControls(controls, false, false, true);
 	          }
-	          else{
+	          else if(button.getText().equals(getLabelForKey(PlainSSHConstants.PLAIN_TYPE_INTERACTIVE))){
+	        	  //type.getConnectionTypeConfigs().put(PLAIN_TYPE, button.getText());
+	        	  type = PlainSSHConstants.PLAIN_TYPE_INTERACTIVE;
+	        	  Control[] controls = group.getChildren();
+	        	  enableControls(controls, false, false, true);
+	          }
+	          else {
 	        	  type = PlainSSHConstants.PLAIN_TYPE_PUBKEY;
 	        	  Control[] controls = group.getChildren();
 	        	  enableControls(controls, true, false, true);
 	          }
 	        }
 	      };
-	      
+	    
+	    gridData = new GridData();
 	    final Button passwordButton = new Button(group, SWT.RADIO);
 	    passwordButton.setText(getLabelForKey(PlainSSHConstants.PLAIN_TYPE_PASS));
 	    passwordButton.setBounds(10, 5, 75, 30);
 	    passwordButton.addListener(SWT.Selection, radioGroup);
-//	    gridData.horizontalSpan = 1;
-//	    passwordButton.setLayoutData(gridData);
-	    //passwordButton.setLayoutData(gridData);
+	    gridData.horizontalSpan = 3;
+	    gridData.horizontalAlignment = SWT.FILL;
+	    passwordButton.setLayoutData(gridData);
+	    
+	    final Button interactiveButton = new Button(group, SWT.RADIO);
+	    interactiveButton.setText(getLabelForKey(PlainSSHConstants.PLAIN_TYPE_INTERACTIVE));
+	    interactiveButton.setBounds(10, 5, 75, 30);
+	    interactiveButton.addListener(SWT.Selection, radioGroup);
+	    interactiveButton.setLayoutData(gridData);
 	    
 	    final Button publickeyButton = new Button(group, SWT.RADIO);
 	    publickeyButton.setText(getLabelForKey(PlainSSHConstants.PLAIN_TYPE_PUBKEY));
 	    publickeyButton.setBounds(10, 5, 75, 30);
 	    publickeyButton.addListener(SWT.Selection, radioGroup);
-//	    gridData.horizontalSpan = 3;
-//	    publickeyButton.setLayoutData(gridData);
+	    publickeyButton.setLayoutData(gridData);
 
-	    Label filllabel = new Label(group, SWT.NONE);
-	    filllabel.setSize(64, 32);
-	    filllabel.setText(" ");
-	    gridData = new GridData();
-	    gridData.horizontalSpan = 1;
-	    //filllabel.setLayoutData(gridData);
-	    
-	    Label filllabel2 = new Label(group, SWT.NONE);
-	    filllabel2.setSize(64, 32);
-	    filllabel2.setText(" ");
-	    gridData.horizontalSpan = 1;
-	    //filllabel2.setLayoutData(gridData);
-	    
-	    Label filllabel3 = new Label(group, SWT.NONE);
-	    filllabel3.setSize(64, 32);
-	    filllabel3.setText(" ");
-	    gridData.horizontalSpan = 1;
-	    filllabel3.setLayoutData(gridData);
+//	    Label filllabel = new Label(group, SWT.NONE);
+//	    filllabel.setSize(64, 32);
+//	    filllabel.setText(" ");
+//	    gridData = new GridData();
+//	    gridData.horizontalSpan = 1;
+//	    //filllabel.setLayoutData(gridData);
 
-	    boolean dirty = true;
-	    type = "";
-	    type = config.get(PLAIN_TYPE) == null ? "" : config.get(PLAIN_TYPE);
-	    if(type.equals(PLAIN_TYPE_PASS)){
-	    	passwordButton.setSelection(true);
-	    	dirty = false;
+	    boolean dirty = false;
+	    if(config.get(PLAIN_TYPE) == null || config.get(PLAIN_TYPE).equals("")){
+	    	type = "";
 	    }
-	    if(type.equals(PLAIN_TYPE_PUBKEY)){
+	    else if(config.get(PLAIN_TYPE).equals(PLAIN_TYPE_PASS)){
+	    	type = PLAIN_TYPE_PASS;
+	    	passwordButton.setSelection(true);
+	    }
+	    else if(config.get(PLAIN_TYPE).equals(PLAIN_TYPE_INTERACTIVE)){
+	    	type = PLAIN_TYPE_INTERACTIVE;
+	    	interactiveButton.setSelection(true);
+	    }
+	    else if(config.get(PLAIN_TYPE).equals(PLAIN_TYPE_PUBKEY)){
+	    	type = PLAIN_TYPE_PUBKEY;
 	    	publickeyButton.setSelection(true);
 	    	dirty = true;
 	    }
-	    
+	    else type = "";
+	    	    
 	    Label label = new Label(group, SWT.NONE);
 		label.setSize(64, 32);
 		label.setText(getLabelForKey(PLAIN_KEY));
@@ -248,6 +258,7 @@ public class PlainSSHConfigUIBuilder extends BasicConfigUIBuilder implements Pla
 		text.setSize(128, 32);
 		String path = config.get(PLAIN_KEY) == null ? "" : config.get(PLAIN_KEY);
 		text.setText(path);
+		text.setToolTipText(text.getText());
 		text.setEnabled(dirty);
 		gridData = new GridData();
 		//gridData.horizontalAlignment = SWT.FILL;
@@ -285,8 +296,7 @@ public class PlainSSHConfigUIBuilder extends BasicConfigUIBuilder implements Pla
   				  c.setEnabled(enable);
   			  }
   			  else{
-  				  if(all)c.setEnabled(radios);
-  				  
+  				  if(all)c.setEnabled(radios);				  
   			  }
   		  }	        		  
   	  }
@@ -342,7 +352,6 @@ public class PlainSSHConfigUIBuilder extends BasicConfigUIBuilder implements Pla
 			c.setEnabled(enabled);
 			if(c instanceof Group){
 				Group group = (Group)c;
-
 				if(enabled) {
 					group.setEnabled(true);
 					group.setText("Authentication");
@@ -352,7 +361,7 @@ public class PlainSSHConfigUIBuilder extends BasicConfigUIBuilder implements Pla
 					group.setText("");
 				}
 				Control[] controls2 = group.getChildren();
-				if(type.equals(PLAIN_TYPE_PASS)){
+				if(type.equals(PLAIN_TYPE_PASS) || type.equals(PLAIN_TYPE_INTERACTIVE)){
 					enabled = false;
 					this.enableControls(controls2, enabled, true, _enabled);
 				}

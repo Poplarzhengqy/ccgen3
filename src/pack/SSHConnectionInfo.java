@@ -89,6 +89,15 @@ class SSHConnectionInfo implements UserInfo, UIKeyboardInteractive, PlainSSHCons
 	String password;
 	private boolean passwordInteractiveUsed;
 
+	public boolean isPasswordInteractiveUsed() {
+		return passwordInteractiveUsed;
+	}
+
+
+	public void setPasswordInteractiveUsed(boolean passwordInteractiveUsed) {
+		this.passwordInteractiveUsed = passwordInteractiveUsed;
+	}
+
 	private String[] keyboardInteractiveResult;
 	SSHConnectionInfo(Map<String,String> config) {
 		this.siteId = config.get(TerminalConstants.ID);
@@ -190,13 +199,12 @@ class SSHConnectionInfo implements UserInfo, UIKeyboardInteractive, PlainSSHCons
 			final boolean[] echo ) {
 		String[] result;
 		
-		//disable passwordInteractive
-		this.passwordInteractiveUsed = false;
-		
 		if ( this.passwordInteractiveUsed ) {
 			Display.getDefault().syncExec( new Runnable() {
 				public void run() {
-					HiddenInputDialog dlg = new HiddenInputDialog(PlatformUI.getWorkbench().getDisplay().getActiveShell(),"Password","Please enter your password","321", null);
+					HiddenInputDialog dlg = new HiddenInputDialog(PlatformUI.getWorkbench().getDisplay().
+							getActiveShell(),"Keyboard-Interactive Password",
+							"Please enter your password for user "  + getUsername(),"321", null);
 			          dlg.open();
 					keyboardInteractiveResult = new String[]{dlg.getValue()};
 				}
@@ -205,11 +213,7 @@ class SSHConnectionInfo implements UserInfo, UIKeyboardInteractive, PlainSSHCons
 		} else {
 			this.passwordInteractiveUsed = true;
 			
-			//disable passwordInteractive
-			this.passwordInteractiveUsed = false;
-			result = null;
-			
-			//result = new String[]{this.password};
+			result = new String[]{this.password};
 		}
 		return result;
 	}
@@ -258,7 +262,7 @@ class SSHConnectionInfo implements UserInfo, UIKeyboardInteractive, PlainSSHCons
 
 			Display.getDefault().syncExec( new Runnable() {
 				public void run() {
-					String msg = "Please enter your password";
+					String msg = "Please, enter your password for user "  + getUsername();
 //					String errorMessage = "";
 					if(getConfig().get(PLAIN_TYPE).equals(PLAIN_TYPE_PUBKEY)){
 						msg = "Public-key authentication failed! Trying with password. Please enter your password";
