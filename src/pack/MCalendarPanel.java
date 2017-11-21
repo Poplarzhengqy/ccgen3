@@ -16,7 +16,7 @@ package org.makagiga.commons.swing;
 
 import static java.awt.event.KeyEvent.*;
 
-import static org.makagiga.commons.UI._;
+import static org.makagiga.commons.UI.i18n;
 
 import java.awt.Color;
 import java.awt.Component;
@@ -64,6 +64,7 @@ import org.makagiga.commons.UI;
 import org.makagiga.commons.ValueListener;
 import org.makagiga.commons.annotation.InvokedFromConstructor;
 import org.makagiga.commons.mv.MRenderer;
+import org.makagiga.commons.painters.GradientPainter;
 import org.makagiga.commons.transition.MoveTransition;
 import org.makagiga.commons.transition.Transition;
 import org.makagiga.commons.transition.TransitionPanel;
@@ -88,24 +89,28 @@ implements
 
 	private boolean animationEnabled = true;
 	private boolean clearTime = true;
+	private boolean editable = true;
 	transient private boolean inUpdate;
 	transient private boolean sameMonthAndYear;
 	private final Border defaultBorder = UI.createEmptyBorder(2);
 	private final Border selectedBorder;
 	private final Border todayBorder;
-	private static Font monthMenuItemFont;
 	transient private int selectedDay;
 	transient private int todayDay;
 	private static MArrayList<MCalendarPanel> calendarPanelList = new MArrayList<>();
-	private final MArrayList<DayButton> dayButtons = new MArrayList<>(31);
+	private final MArrayList<DayButton> dayButtonList = new MArrayList<>(31);
 	private final MArrayList<DayLabel> dayLabels = new MArrayList<>(7);
 	private MCalendar calendar;
 	private final MCalendar lastAutoUpdateDate = MCalendar.now();
 	private MDateSpinner dateSpinner;
+	private MLabel oldViewLabel;
+	private MLabel todayLabel;
 	private MMessageLabel infoLabel;
 	private MPanel daysPanel;
 	private MPanel topPanel;
 	private MSmallButton monthMenuButton;
+	private MSmallButton nextMonthButton;
+	private MSmallButton previousMonthButton;
 	private MSmallButton todayButton;
 	private MTimer autoUpdateTimer;
 	private static Renderer globalRenderer;
@@ -121,6 +126,9 @@ implements
 
 	@ConstructorProperties("selectedDate")
 	public MCalendarPanel(final MDate date) {
+		for (int i = 0; i < 31; i++)
+			dayButtonList.add(new DayButton(i + 1));
+	
 		todayBorder = BorderFactory.createLineBorder(MColor.RED, 2);
 	
 		Color brandColor = MApplication.getLightBrandColor();
@@ -137,13 +145,21 @@ implements
 
 		// info
 		infoLabel = new MMessageLabel(MIcon.stock("ui/calendar"));
+		
+		GradientPainter painter = new GradientPainter(brandColor);
+		painter.setReversed(true);
+		infoLabel.setPainter(painter);
+		
 		infoLabel.setColor(brandColor, Color.BLACK);
 		infoLabel.setCursor(Cursor.HAND_CURSOR);
 		infoLabel.setTextAntialiasing(true);
-		infoLabel.setToolTipText(_("Today"));
+		infoLabel.setToolTipText(i18n("Today"));
 		infoLabel.addKeyListener(new KeyAdapter() {
 			@Override
 			public void keyPressed(final KeyEvent e) {
+				if (!isEditable())
+					return;
+			
 				if (MAction.isTrigger(e)) {
 					setTodayDate();
 					doUserUpdate();
@@ -154,6 +170,9 @@ implements
 		infoLabel.addMouseListener(new MMouseAdapter() {
 			@Override
 			public void mouseClicked(final MouseEvent e) {
+				if (!isEditable())
+					return;
+
 				setTodayDate();
 				doUserUpdate();
 				e.consume();
@@ -228,7 +247,15 @@ implements
 	/**
 	 * @since 3.8.12
 	 */
-	public void setClearTime(final boolean value) { clearTime = value; }
+	public void setClearTime(final boolean value) {
+		if (value != clearTime) {
+			clearTime = value;
+			if (clearTime)
+				todayButton.setToolTipText(i18n("Today"));
+			else
+				todayButton.setToolTipText(MActionInfo.CURRENT_DATE_AND_TIME.getText());
+		}
+	}
 
 	@Override
 	public Dimension getMinimumSize() {
@@ -309,6 +336,11 @@ implements
 	public MButton getTodayButton() { return todayButton; }
 	
 	/**
+	 * @since 4.6
+	 */
+	public MLabel getTodayLabel() { return todayLabel; }
+	
+	/**
 	 * @since 4.2
 	 */
 	public MPanel getTopPanel() { return topPanel; }
@@ -349,6 +381,30 @@ implements
 		}
 	}
 	
+	/**
+	 * @since 4.4
+	 */
+	public boolean isEditable() { return editable; }
+
+	/**
+	 * @since 4.4
+	 */
+	public void setEditable(final boolean value) {
+		if (value != editable) {
+			editable = value;
+			dateSpinner.setEnabled(editable);
+			dateSpinner.getTextField().setEditable(editable);
+			
+			todayButton.setEnabled(editable);
+			previousMonthButton.setEnabled(editable);
+			monthMenuButton.setEnabled(editable);
+			nextMonthButton.setEnabled(editable);
+			
+			for (DayButton i : dayButtonList)
+				i.setEnabled(editable);
+		}
+	}
+
 	public boolean isMonthMenuButtonVisible() {
 		return monthMenuButton.isVisible();
 	}
@@ -374,7 +430,7 @@ implements
 	 */
 	public void updateRenderers(final int year, final int month) {
 		int day = 0;
-		for (DayButton i : dayButtons)
+		for (DayButton i : dayButtonList)
 			applyRenderer(i, year, month, ++day);
 	}
 	
@@ -388,10 +444,10 @@ implements
 	@Override
 	public void focus() {
 		if (dateSpinner.isEnabled()) {
-			dateSpinner.requestFocusInWindow();
+			MComponent.requestFocusLater(dateSpinner);
 		}
 		else {
-			for (DayButton i : dayButtons) {
+			for (DayButton i : dayButtonList) {
 				if (i.day == selectedDay) {
 					i.requestFocusInWindow();
 					
@@ -410,7 +466,21 @@ implements
 	 */
 	@Override
 	public void dispose() {
+		dayButtonList.clear();
+		dayLabels.clear();
+		dateSpinner = null;
+		oldViewLabel = null;
+		todayLabel = null;
+		infoLabel = null;
+		daysPanel = null;
+		topPanel = null;
+		monthMenuButton = null;
+		nextMonthButton = null;
+		previousMonthButton = null;
+		todayButton = null;
 		autoUpdateTimer = TK.dispose(autoUpdateTimer);
+		renderer = null;
+		transitionPanel = null;
 	}
 
 	// ValueChooser
@@ -499,37 +569,47 @@ implements
 		
 		if (TK.isEmpty(dayButton.getToolTipText())) {
 			if (today)
-				dayButton.setToolTipText(_("Today"));
+				dayButton.setToolTipText(i18n("Today"));
 			else if (selected)
-				dayButton.setToolTipText(_("Selected Date"));
+				dayButton.setToolTipText(i18n("Selected Date"));
 			else
 				dayButton.setToolTipText(null);
 		}
 		
-		dayButton.itemList.clear();
-		dayButton.itemList.addAll(renderer.itemList);
+		if (dayButton._itemList != null)
+			dayButton._itemList.clear();
+		
+		if (!TK.isEmpty(renderer._itemList)) {
+			if (dayButton._itemList == null)
+				dayButton._itemList = new MArrayList<>();
+			dayButton._itemList.addAll(renderer._itemList);
+		}
+		
 		dayButton.repaint();
 	}
 
 	private MPanel createHeaderPanel() {
-		MPanel p = MPanel.createBorderPanel();
-		p.setMargin(5);
+		MPanel p = MPanel.createSimplePanel();
 		p.setOpaque(false);
 
+		MSimpleLayout l = p.getSimpleLayout();
+		l.setMargin(5);
+
 		// today
-		todayButton = new MSmallButton(MActionInfo.CURRENT_DATE_AND_TIME.getSmallIcon(), _("Today")) {
+		todayButton = new MSmallButton(MActionInfo.CURRENT_DATE_AND_TIME.getSmallIcon(), i18n("Today")) {
 			@Override
 			protected void onClick() {
 				MCalendarPanel.this.setTodayDate();
 				MCalendarPanel.this.doUserUpdate();
 			}
 		};
-		p.addWest(todayButton);
+		p.add(todayButton, "left");
 
 		// date spinner
 		dateSpinner = new MDateSpinner();
+		dateSpinner.makeLargeFont();
 		dateSpinner.setSimpleFormat("MMMM yyyy");
-		dateSpinner.setToolTipText(_("Date"));
+		dateSpinner.setToolTipText(i18n("Date"));
 		dateSpinner.addChangeListener(new ChangeListener() {
 			@Override
 			public void stateChanged(final ChangeEvent e) {
@@ -545,25 +625,25 @@ implements
 				}
 			}
 		} );
-		p.addCenter(dateSpinner);
-
-		MPanel previousNextMonthPanel = MPanel.createHBoxPanel();
-		previousNextMonthPanel.setOpaque(false);
+		p.add(dateSpinner);
 
 		// previous month
-		MAction previousMonthAction = new MAction(_("Previous Month"), "ui/previous", VK_PAGE_UP) {
+		MAction previousMonthAction = new MAction(i18n("Previous Month"), "ui/previous", VK_PAGE_UP) {
 			@Override
 			public void onAction() {
+				if (!MCalendarPanel.this.isEditable())
+					return;
+			
 				MCalendarPanel.this.addMonth(-1);
 				MCalendarPanel.this.doUserUpdate();
 			}
 		};
 		previousMonthAction.connect(this, WHEN_ANCESTOR_OF_FOCUSED_COMPONENT);
-		MSmallButton previousMonth = new MSmallButton(previousMonthAction, false);
-		previousNextMonthPanel.add(previousMonth);
+		previousMonthButton = new MSmallButton(previousMonthAction, false);
+		p.add(previousMonthButton, "right");
 		
 		// month menu
-		monthMenuButton = new MSmallButton(MIcon.small("ui/down"), _("Select a Month")) {
+		monthMenuButton = new MSmallButton(MIcon.small("ui/down"), i18n("Choose Month")) {
 			@Override
 			protected MMenu onPopupMenu() {
 				return MCalendarPanel.this.createMonthMenu();
@@ -571,22 +651,23 @@ implements
 		};
 		monthMenuButton.setPopupMenuArrowPainted(false);
 		monthMenuButton.setPopupMenuEnabled(true);
-		previousNextMonthPanel.add(monthMenuButton);
+		p.add(monthMenuButton, "right");
 
 		// next month
-		MAction nextMonthAction = new MAction(_("Next Month"), "ui/next", VK_PAGE_DOWN) {
+		MAction nextMonthAction = new MAction(i18n("Next Month"), "ui/next", VK_PAGE_DOWN) {
 			@Override
 			public void onAction() {
+				if (!MCalendarPanel.this.isEditable())
+					return;
+
 				MCalendarPanel.this.addMonth(1);
 				MCalendarPanel.this.doUserUpdate();
 			}
 		};
 		nextMonthAction.connect(this, WHEN_ANCESTOR_OF_FOCUSED_COMPONENT);
-		MSmallButton nextMonth = new MSmallButton(nextMonthAction, false);
-		previousNextMonthPanel.add(nextMonth);
+		nextMonthButton = new MSmallButton(nextMonthAction, false);
+		p.add(nextMonthButton, "right");
 
-		p.addEast(previousNextMonthPanel);
-		p.limitHeight(dateSpinner);
 		topPanel = p;
 
 		return p;
@@ -723,8 +804,10 @@ implements
 
 		transitionPanel.removeAll();
 		if (doTransition && (daysPanel.getWidth() > 0) && (daysPanel.getHeight() > 0)) {
-			MLabel oldViewLabel = new MLabel(MComponent.createScreenshot(daysPanel, MColor.WHITE));
-			transitionPanel.add(oldViewLabel, "old");//!!!opt
+			if (oldViewLabel == null)
+				oldViewLabel = new MLabel();
+			oldViewLabel.setImage(MComponent.createScreenshot(daysPanel, MColor.WHITE));
+			transitionPanel.add(oldViewLabel, "old");
 		}
 
 		daysPanel.removeAll();
@@ -758,7 +841,6 @@ implements
 				break;
 		}
 
-		DayButton dayButton;
 		int max = calendar.getActualMaximum(MCalendar.DAY_OF_MONTH);
 
 		// MLogger.debug("core", "dayShift = %d", dayShift);
@@ -766,7 +848,8 @@ implements
 		int col = 1;
 		int row = 1;
 
-		WeekLabel weekLabel = new WeekLabel(startOfMonth.getWeek(), row - 1);
+		Color weekLabelForeground = MColor.deriveColor(MColor.WHITE, 0.5f);
+		WeekLabel weekLabel = new WeekLabel(startOfMonth.getWeek(), row - 1, weekLabelForeground);
 		daysPanel.add(weekLabel);
 
 		if (dayShift == 0 || dayShift == 7) {
@@ -786,23 +869,28 @@ implements
 		todayDay = now.getDay();
 		
 		int todayDayOfWeek = now.getDayOfWeek();
+		todayLabel = null;
 		for (DayLabel dayLabel : dayLabels) {
-			if (sameMonthAndYear && (dayLabel.day == todayDayOfWeek))
-				dayLabel.setBackground(MColor.BRICK_RED);
-			else
+			if (sameMonthAndYear && (dayLabel.day == todayDayOfWeek)) {
+				todayLabel = dayLabel;
+				dayLabel.setBackground(infoLabel.getBackground());
+				dayLabel.setForeground(infoLabel.getForeground());
+			}
+			else {
 				dayLabel.setBackground(MColor.WHITE);
+				dayLabel.setForeground(MColor.BLACK);
+			}
 		}
 
 		DayButton newFocus = null;
-		dayButtons.clear();
 		for (int day = 1; day <= max; day++) {
 			if (col == 1) {
 				MCalendar c = MCalendar.date(year, month1, day);
-				daysPanel.add(new WeekLabel(c.getWeek(), row - 1));
+				daysPanel.add(new WeekLabel(c.getWeek(), row - 1, weekLabelForeground));
 			}
 
-			dayButton = new DayButton(day, row - 1);
-			dayButtons.add(dayButton);
+			DayButton dayButton = dayButtonList.get(day - 1);
+			dayButton._row = row - 1;
 			daysPanel.add(dayButton);
 
 			if (restoreFocus && (focusedDay != -1) && (focusedDay == day))
@@ -816,6 +904,7 @@ implements
 				col++;
 			}
 		}
+
 		while (row < 7) {
 			daysPanel.add(new EmptyCell());
 			if (col == 7) {
@@ -890,7 +979,7 @@ implements
 		private int day;
 		private int month;
 		private int year;
-		private MArrayList<Item<?>> itemList = new MArrayList<>();
+		private MArrayList<Item<?>> _itemList;
 
 		// public
 		
@@ -915,7 +1004,9 @@ implements
 			Item<Object> item = new Item<>();
 			item.setIcon(icon);
 			item.setText(text);
-			itemList.add(item);
+			if (_itemList == null)
+				_itemList = new MArrayList<>();
+			_itemList.add(item);
 		}
 		
 		protected abstract void onRender();
@@ -927,7 +1018,9 @@ implements
 			l.setForeground(null);
 			l.setIcon(null);
 			l.setToolTipText(null);
-			itemList.clear();
+
+			if (_itemList != null)
+				_itemList.clear();
 			
 			onRender();
 		}
@@ -953,8 +1046,8 @@ implements
 
 		private boolean mouseHover;
 		private final int day;
-		private final int row;
-		private final MArrayList<Item<?>> itemList = new MArrayList<>();//!!!opt
+		private int _row;
+		private MArrayList<Item<?>> _itemList;
 
 		// public
 
@@ -971,7 +1064,7 @@ implements
 		@Override
 		public void setBackground(final Color value) {
 			Color c = value;
-			if ((c != null) && (row % 2 != 0))
+			if ((c != null) && (_row % 2 != 0))
 				c = MColor.getDarker(c);
 
 			super.setBackground(c);
@@ -990,6 +1083,10 @@ implements
 				return;
 
 			MCalendarPanel calendarPanel = MCalendarPanel.this;
+			
+			if (!calendarPanel.isEditable())
+				return;
+			
 			MDate oldDate = calendarPanel.getValue();
 			calendar.set(MCalendar.DAY_OF_MONTH, day);
 			calendarPanel.update(oldDate, true);
@@ -997,7 +1094,7 @@ implements
 			
 			MMenu menu = calendarPanel.onClick(day);
 			if (menu != null) {
-				DayButton dayButton = calendarPanel.dayButtons.get(day - 1);
+				DayButton dayButton = calendarPanel.dayButtonList.get(day - 1);
 				menu.showPopup(dayButton.getParent(), dayButton);
 			}
 		}
@@ -1007,15 +1104,15 @@ implements
 			if (!isPaintingForPrint())
 				super.paintBorder(g);
 		}
-
+		
 		@Override
 		protected void paintComponent(final Graphics graphics) {
+			List<Item<?>> itemList = TK.toList(_itemList);
 			boolean paintItemList = !itemList.isEmpty() && (getHeight() > 32);
 			boolean print = this.isPaintingForPrint();
 			Color bg = UI.getBackground(this);
 			Font font = UI.getFont(this);
 			MGraphics2D g = MGraphics2D.copy(graphics);
-			g.setAntialiasing(true);
 			Graphics2D g2d = g.getGraphics2D();
 			if (print)
 				UI.setBasicTextAntialiasing(g2d, true);
@@ -1038,6 +1135,8 @@ implements
 				}
 				g.fillRect(this);
 			}
+			
+			g.setAntialiasing(true); // after fillRect
 
 			// day number
 
@@ -1046,8 +1145,7 @@ implements
 			if (paintItemList)
 				g.setAlpha(mouseHover ? 0.40f : 0.20f);
 			
-			int dayStyle = !print && MCalendarPanel.this.isToday(day) ? (Font.ITALIC + Font.BOLD) : Font.PLAIN;
-			g.setFont(font.deriveFont(dayStyle, TK.limit(getHeight() / 2, 12, 32)));
+			g.setFont(font.deriveFont(Font.PLAIN, TK.limit(getHeight() / 2, 12, 32)));
 			
 			FontMetrics fm = g.getFontMetrics();
 			String s = getText();
@@ -1141,9 +1239,8 @@ implements
 		
 		// private
 
-		private DayButton(final int day, final int row) {
+		private DayButton(final int day) {
 			this.day = day;
-			this.row = row;
 			setCursor(Cursor.HAND_CURSOR);
 			setOpaque(true);
 			
@@ -1175,8 +1272,9 @@ implements
 		}
 		
 		private void moveFocus(final int numDays) {
-			int newDay = TK.limit(day + numDays, 1, MCalendarPanel.this.dayButtons.size());
-			for (DayButton i : MCalendarPanel.this.dayButtons) {
+			int max = MCalendarPanel.this.calendar.getActualMaximum(MCalendar.DAY_OF_MONTH);
+			int newDay = TK.limit(day + numDays, 1, max);
+			for (DayButton i : MCalendarPanel.this.dayButtonList) {
 				if ((i != this) && (i.day == newDay)) {
 					i.requestFocusInWindow();
 				
@@ -1199,6 +1297,13 @@ implements
 		// private
 		
 		private final int day;
+		
+		// public
+		
+		@Override
+		public Color getBackground() {
+			return isPaintingForPrint() ? Color.WHITE : super.getBackground();
+		}
 	
 		// private
 
@@ -1241,10 +1346,16 @@ implements
 		private Label(final String text, final boolean bold, final MLineBorder.Position borderPosition) {
 			super(text);
 			Font font = UI.getFont(this);
-			setFont(font.deriveFont(
-				bold ? Font.BOLD : Font.PLAIN,
-				(float)(font.getSize() - 1) // smaller
-			));
+			if (bold) {
+				font = UI.deriveFontStyle(font, Font.BOLD);
+			}
+			else {
+				font = font.deriveFont(
+					Font.PLAIN,
+					(float)Math.max(11, font.getSize() - 1) // smaller
+				);
+			}
+			setFont(font);
 			setHorizontalAlignment(CENTER);
 
 			setBorder(new SeparatorBorder(borderPosition));
@@ -1261,37 +1372,29 @@ implements
 		
 		@Override
 		public void onAction() {
-			MCalendarPanel.this.setMonth(getData());
+			MCalendarPanel.this.setMonth(this.getData());
 			MCalendarPanel.this.doUserUpdate();
 		}
 		
 		// private
 		
 		private MonthAction(final String name, final int month) {
-			super(month, name);
-
-			if (monthMenuItemFont == null)
-				monthMenuItemFont = new Font(Font.DIALOG, Font.BOLD, UI.getDefaultFontSize());
-
-			int iconSize = monthMenuItemFont.getSize();
-			ItemStatus.Icon icon = new ItemStatus.Icon(
-				Integer.toString(month),
-				UI.getBackground(MCalendarPanel.this.infoLabel),
-				new Dimension(iconSize * 2, iconSize + 2),
-				monthMenuItemFont
-			);
-			setSmallIcon(icon);
+			super(month, month + " - " + name);
 		}
 		
 	}
 
 	private static final class SeparatorBorder extends MLineBorder {
+	
+		// private
+		
+		private static final Color DEFAULT_COLOR = MColor.deriveColor(MColor.WHITE, 0.8f);
 
 		// private
 
 		private SeparatorBorder(final Position position) {
 			super(position);
-			getStyle(position).setColor(MColor.getDarker(MColor.WHITE));
+			getStyle(position).setColor(DEFAULT_COLOR);
 		}
 
 	}
@@ -1300,23 +1403,10 @@ implements
 	
 		// private
 
-		private WeekLabel(final int week, final int row) {
+		private WeekLabel(final int week, final int row, final Color fg) {
 			super(Integer.toString(week), false, MLineBorder.Position.RIGHT);
-			setForeground(MColor.deriveColor(MColor.WHITE, 0.5f));
-			setToolTipText(_("Week: {0}", getText()));
-			
-			if (row % 2 != 0) {
-				SeparatorBorder b = (SeparatorBorder)getBorder();
-				SeparatorBorder.Style right = b.getRight();
-				SeparatorBorder.Style top = b.getTop();
-				SeparatorBorder.Style bottom = b.getBottom();
-
-				top.setColor(right.getColor());
-				top.setVisible(true);
-
-				bottom.setColor(right.getColor());
-				bottom.setVisible(true);
-			}
+			setForeground(fg);
+			setToolTipText(i18n("Week: {0}", getText()));
 		}
 
 	}
