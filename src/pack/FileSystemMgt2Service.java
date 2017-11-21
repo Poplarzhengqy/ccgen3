@@ -570,7 +570,7 @@ public class FileSystemMgt2Service extends AbstractDeleterService {
         FileSystemDTO tmp = storageFileSystem;
         String next;
         while ((next = tmp.getNext()) != null &&
-                next != storageFileSystem.getDirectoryPath()) {
+                !next.equals(storageFileSystem.getDirectoryPath())) {
             tmp = fsMgt.getFileSystemOfGroup(getFileSystemGroupID(), next);
             if (tmp.getStatus() == FileSystemStatus.RW && 
             		tmp.getAvailability() == Availability.toInt(getDefAvailability()) &&
