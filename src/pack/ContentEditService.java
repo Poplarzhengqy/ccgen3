@@ -563,7 +563,7 @@ public class ContentEditService extends ServiceMBeanSupport {
                 for (MPPS mpps : mppss) {
                     mppsAttrs = mpps.getAttributes();
                     CoercionUtil.coerceAttributes(mppsAttrs, coerce);
-                    mpps.setAttributes(mppsAttrs);
+                    lookupMppsToMwlLinkLocal().updateMPPSAttributes(mpps, mppsAttrs);
                 }
             } else {
                 log.info("Can not add MWL attributes to MPPS Linked notification! addMwlAttrsToMppsXsl stylesheet file not found! file:"+f);

@@ -63,5 +63,6 @@ public interface MppsToMwlLinkLocal {
     MppsToMwlLinkResult linkMppsToMwl(long[] mppsPks, DicomObject mwlAttrs, Patient mwlPat, String modifyingSystem, String reason);
     MPPS unlinkMpps(long pk, String modifyingSystem, String modifyReason);
     Map<String, DicomObject> updateSeriesAndStudyAttributes(String[] mppsIuids, DicomObject coerce);
+    void updateMPPSAttributes(MPPS mpps, DicomObject attrs);
     List<Patient> selectOrCreatePatient(DicomObject mwlAttrs);
 }

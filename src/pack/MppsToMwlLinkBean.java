@@ -342,6 +342,11 @@ public class MppsToMwlLinkBean implements MppsToMwlLinkLocal {
         return result;
     }
 
+    public void updateMPPSAttributes(MPPS mpps, DicomObject attrs) {
+        mpps.setAttributes(attrs);
+        em.merge(mpps);
+    }
+
     private void addToResult(Map<String, DicomObject> result, Series series,
             Study study) {
         Instance instance = null;
