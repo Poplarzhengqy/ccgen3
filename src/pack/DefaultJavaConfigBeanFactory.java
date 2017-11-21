@@ -15,9 +15,13 @@
  */
 package org.springframework.config.java.context;
 
+import org.springframework.beans.BeanMetadataAttribute;
+import org.springframework.beans.BeanMetadataAttributeAccessor;
+import org.springframework.beans.factory.BeanDefinitionStoreException;
 import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
 import org.springframework.beans.factory.support.DefaultListableBeanFactory;
+import org.springframework.config.java.core.Constants;
 import org.springframework.config.java.naming.BeanNamingStrategy;
 import org.springframework.config.java.naming.MethodNameStrategy;
 
@@ -63,10 +67,23 @@ public class DefaultJavaConfigBeanFactory extends DefaultListableBeanFactory imp
 		}
 	}
 
+	/**
+	 * Register a bean definition. No explicit {@link BeanVisibility} is defined;
+	 * default to {@link BeanVisibility#HIDDEN hidden}
+	 */
+	@Override
+	public void registerBeanDefinition(String beanName, BeanDefinition beanDef) throws BeanDefinitionStoreException {
+		this.registerBeanDefinition(beanName, beanDef, BeanVisibility.HIDDEN);
+	}
+
 	public void registerBeanDefinition(String beanName, BeanDefinition beanDef, BeanVisibility visibility) {
+
+		// note that this bean definition was added by JavaConfig (as opposed to XML, etc)
+		((BeanMetadataAttributeAccessor) beanDef).addMetadataAttribute(new BeanMetadataAttribute(Constants.JAVA_CONFIG_PKG, true));
+
 		switch(visibility) {
 			case HIDDEN:
-				registerBeanDefinition(beanName, beanDef);
+				super.registerBeanDefinition(beanName, beanDef);
 				break;
 			case PUBLIC:
 				getParentBeanFactory().registerBeanDefinition(beanName, beanDef);
@@ -74,10 +91,19 @@ public class DefaultJavaConfigBeanFactory extends DefaultListableBeanFactory imp
 		}
 	}
 
+	/**
+	 * Register a bean alias. No explicit {@link BeanVisibility} is defined,
+	 * default to {@link BeanVisibility#HIDDEN hidden}
+	 */
+	@Override
+	public void registerAlias(String beanName, String alias) {
+		this.registerAlias(beanName, alias, BeanVisibility.HIDDEN);
+	}
+
 	public void registerAlias(String beanName, String alias, BeanVisibility visibility) {
 		switch(visibility) {
 			case HIDDEN:
-				registerAlias(beanName, alias);
+				super.registerAlias(beanName, alias);
 				break;
 			case PUBLIC:
 				getParentBeanFactory().registerAlias(beanName, alias);

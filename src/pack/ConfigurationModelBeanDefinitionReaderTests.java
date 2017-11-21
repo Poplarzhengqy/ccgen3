@@ -27,6 +27,8 @@ import org.springframework.config.java.util.DefaultScopes;
 
 /**
  * TODO: clean up duplication between the tests herein
+ * TODO: the expectations against EasyMock are very fragile, and often break when refactoring
+ * other parts of the system. consider a different approach.
  *
  * @author Chris Beams
  */
@@ -55,6 +57,10 @@ public class ConfigurationModelBeanDefinitionReaderTests {
 		expect(registry.getBeanDefinitionCount()).andReturn(0);
 
 		expect(registry.getBeanNamingStrategy()).andReturn(new MethodNameStrategy());
+
+		expect(registry.containsBeanDefinition("order")).andReturn(false);
+
+		expect(registry.getParentBeanFactory()).andReturn(null);
 
 		RootBeanDefinition configBeanDef = new RootBeanDefinition();
 		configBeanDef.setBeanClassName(configClassName);
@@ -95,6 +101,10 @@ public class ConfigurationModelBeanDefinitionReaderTests {
 		expect(registry.getBeanDefinitionCount()).andReturn(0);
 
 		expect(registry.getBeanNamingStrategy()).andReturn(new MethodNameStrategy());
+
+		expect(registry.containsBeanDefinition("order")).andReturn(false);
+
+		expect(registry.getParentBeanFactory()).andReturn(null);
 
 		RootBeanDefinition configBeanDef = new RootBeanDefinition();
 		configBeanDef.setBeanClassName(configClassName);
@@ -170,6 +180,10 @@ public class ConfigurationModelBeanDefinitionReaderTests {
 
 		expect(registry.getBeanNamingStrategy()).andReturn(new MethodNameStrategy());
 
+		expect(registry.containsBeanDefinition("order")).andReturn(false);
+
+		expect(registry.getParentBeanFactory()).andReturn(null);
+
 		RootBeanDefinition configBeanDef = new RootBeanDefinition();
 		configBeanDef.setBeanClassName(configClassName);
 		configBeanDef.addMetadataAttribute(new BeanMetadataAttribute(ConfigurationClass.BEAN_ATTR_NAME, true));
@@ -213,6 +227,10 @@ public class ConfigurationModelBeanDefinitionReaderTests {
 		expect(registry.getBeanDefinitionCount()).andReturn(0);
 
 		expect(registry.getBeanNamingStrategy()).andReturn(new MethodNameStrategy());
+
+		expect(registry.containsBeanDefinition("order")).andReturn(false);
+
+		expect(registry.getParentBeanFactory()).andReturn(null);
 
 		// expect the registration of our Configuration class above
 		RootBeanDefinition configBeanDef = new RootBeanDefinition();
@@ -260,6 +278,10 @@ public class ConfigurationModelBeanDefinitionReaderTests {
 
 		expect(registry.getBeanNamingStrategy()).andReturn(new MethodNameStrategy());
 
+		expect(registry.containsBeanDefinition("order")).andReturn(false);
+
+		expect(registry.getParentBeanFactory()).andReturn(null);
+
 		// expect the registration of our Configuration class above
 		RootBeanDefinition configBeanDef = new RootBeanDefinition();
 		configBeanDef.setBeanClassName(configClassName);
@@ -302,6 +324,10 @@ public class ConfigurationModelBeanDefinitionReaderTests {
 		expect(registry.getBeanDefinitionCount()).andReturn(0);
 
 		expect(registry.getBeanNamingStrategy()).andReturn(new MethodNameStrategy());
+
+		expect(registry.containsBeanDefinition("order")).andReturn(false);
+
+		expect(registry.getParentBeanFactory()).andReturn(null);
 
 		// expect the registration of our Configuration class above
 		RootBeanDefinition configBeanDef = new RootBeanDefinition();

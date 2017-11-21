@@ -12,6 +12,9 @@ import org.springframework.aop.framework.autoproxy.AutoProxyUtils;
 import org.springframework.aop.scope.ScopedProxyFactoryBean;
 import org.springframework.beans.BeanMetadataAttribute;
 import org.springframework.beans.factory.BeanFactory;
+import org.springframework.beans.factory.NoSuchBeanDefinitionException;
+import org.springframework.beans.factory.config.BeanDefinition;
+import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
 import org.springframework.beans.factory.support.BeanDefinitionReader;
 import org.springframework.beans.factory.support.BeanDefinitionRegistry;
 import org.springframework.beans.factory.support.DefaultListableBeanFactory;
@@ -24,9 +27,11 @@ import org.springframework.config.java.annotation.ResourceBundles;
 import org.springframework.config.java.context.BeanVisibility;
 import org.springframework.config.java.context.JavaConfigBeanFactory;
 import org.springframework.config.java.core.BeanFactoryFactory;
+import org.springframework.config.java.core.Constants;
 import org.springframework.config.java.core.ScopedProxyMethodProcessor;
 import org.springframework.config.java.type.Type;
 import org.springframework.config.java.valuesource.MessageSourceValueSource;
+import org.springframework.context.support.AbstractApplicationContext;
 import org.springframework.context.support.ReloadableResourceBundleMessageSource;
 import org.springframework.core.annotation.AnnotationUtils;
 import org.springframework.core.io.DefaultResourceLoader;
@@ -145,9 +150,31 @@ public class ConfigurationModelBeanDefinitionReader {
 		if(metadata.autowire() != AnnotationUtils.getDefaultValue(Bean.class, "autowire"))
 			beanDef.setAutowireMode(metadata.autowire().value());
 		else if(defaults.defaultAutowire() != AnnotationUtils.getDefaultValue(Configuration.class, "defaultAutowire"))
-				beanDef.setAutowireMode(defaults.defaultAutowire().value());
+			beanDef.setAutowireMode(defaults.defaultAutowire().value());
 
 		String beanName = beanFactory.getBeanNamingStrategy().getBeanName(beanMethod);
+
+		// has this already been overriden (i.e.: via XML)?
+		if(containsBeanDefinitionIncludingAncestry(beanFactory, beanName)) {
+			BeanDefinition existingBeanDef = getBeanDefinitionIncludingAncestry(beanFactory, beanName);
+
+			// is the existing bean definition one that was created by JavaConfig?
+			if(existingBeanDef.getAttribute(Constants.JAVA_CONFIG_PKG) == null) {
+				// no -> then it's an external override, probably XML
+
+				// ensure that overriding is ok
+				if(metadata.allowOverriding() == false)
+					throw new IllegalStateException(format("Illegal attempt to override @Bean method %s.%s(). " +
+							"allowOverride is set to 'false', consider setting to 'true'.",
+							configClass.getName(), beanMethod.getName()));
+
+				// overriding is legal, return immediately
+        		logger.info(format("Skipping loading bean definition for %s: a definition for bean '%s' already exists. " +
+        					"This is likely due to an override in XML.",
+        				beanMethod, beanName));
+				return;
+			}
+		}
 
 		// consider aliases
 		for(String alias : metadata.aliases())
@@ -204,6 +231,39 @@ public class ConfigurationModelBeanDefinitionReader {
 		logger.info(format("Registering %s bean definition for @Bean method %s.%s()", visibility, configClassName, beanName));
 		beanFactory.registerBeanDefinition(beanName, beanDef, visibility);
 	}
+
+	private static boolean containsBeanDefinitionIncludingAncestry(JavaConfigBeanFactory beanFactory, String beanName) {
+		try {
+			getBeanDefinitionIncludingAncestry(beanFactory, beanName);
+			return true;
+		} catch (NoSuchBeanDefinitionException ex) {
+			return false;
+		}
+	}
+
+	private static BeanDefinition getBeanDefinitionIncludingAncestry(JavaConfigBeanFactory beanFactory, String beanName) {
+		ConfigurableListableBeanFactory bf = beanFactory;
+		do {
+			if(bf.containsBeanDefinition(beanName))
+				return bf.getBeanDefinition(beanName);
+			BeanFactory parent = bf.getParentBeanFactory();
+			if(parent == null) {
+				bf = null;
+			}
+			else if (parent instanceof ConfigurableListableBeanFactory) {
+				bf = (ConfigurableListableBeanFactory) parent;
+			}
+			else if (parent instanceof AbstractApplicationContext) {
+				bf = ((AbstractApplicationContext) parent).getBeanFactory();
+			}
+			else {
+				throw new IllegalStateException("unknown parent type: " + parent.getClass().getName());
+			}
+		} while (bf != null);
+
+		throw new NoSuchBeanDefinitionException(format("No bean definition matching name '%s' could be found in %s or its ancestry", beanName, beanFactory));
+	}
+
 
 	private void loadBeanDefinitionsForAutoBeanMethod(AutoBeanMethod method) {
 		Type returnType = method.getReturnType();
