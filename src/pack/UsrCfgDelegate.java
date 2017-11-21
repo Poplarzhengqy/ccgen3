@@ -69,12 +69,4 @@ public class UsrCfgDelegate extends BaseCfgDelegate {
         return getBoolean("manageStudyPermissions", false)
             || getBoolean("useStudyPermissions", false);
     }
-
-    public String getStudyPermissionsAllRolename() {
-        return getString("studyPermissionsAllRolename");
-    }
-    
-    public String getStudyPermissionsOwnRolename() {
-        return getString("studyPermissionsOwnRolename");
-    }    
 }

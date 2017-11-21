@@ -62,6 +62,7 @@ import org.dcm4chee.usr.model.Role;
 import org.dcm4chee.usr.ui.config.delegate.UsrCfgDelegate;
 import org.dcm4chee.usr.ui.util.CSSUtils;
 import org.dcm4chee.usr.util.JNDIUtils;
+import org.dcm4chee.web.common.base.BaseWicketApplication;
 import org.dcm4chee.web.common.base.BaseWicketPage;
 import org.dcm4chee.web.common.delegate.BaseCfgDelegate;
 import org.dcm4chee.web.common.secure.SecureSession;
@@ -108,8 +109,8 @@ public class WebPermissionsPage extends SecureWebPage {
         Iterator<String> principals = principalsAndKeys.keySet().iterator();
 
         boolean manageStudyPermissions = UsrCfgDelegate.getInstance().getManageStudyPermissions();
-        String studyPermissionsAll = UsrCfgDelegate.getInstance().getStudyPermissionsAllRolename();
-        String studyPermissionsOwn = UsrCfgDelegate.getInstance().getStudyPermissionsOwnRolename();
+        String studyPermissionsAll = BaseWicketApplication.get().getInitParameter("StudyPermissionsAllRolename");
+        String studyPermissionsOwn = BaseWicketApplication.get().getInitParameter("StudyPermissionsOwnRolename");
 
         int i = 0;
         while(principals.hasNext()) {

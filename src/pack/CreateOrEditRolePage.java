@@ -197,7 +197,7 @@ public class CreateOrEditRolePage extends SecureWebPage {
                             userAccess.addRole(newRole);
                             Auditlog.logSoftwareConfiguration(true, "Role "+newRole+" created.");
                         } else {
-                            String updInfo = getUpdateInfo(role, groupList, aetGroups);
+                            getUpdateInfo(role, groupList, aetGroups);
                             role.setRolename(rolename.getObject());
                             role.setDescription(description.getObject());
                             role.setSuperuser(superuserCheckbox.getModelObject());
