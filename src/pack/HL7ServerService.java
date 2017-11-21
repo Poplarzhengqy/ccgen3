@@ -145,6 +145,8 @@ public class HL7ServerService extends ServiceMBeanSupport implements
 
     private String[] noopMessageTypes = {};
 
+    private boolean jbossStarted;
+
     public final String getCharsetName() {
 		return charsetName;
 	}
@@ -334,27 +336,39 @@ public class HL7ServerService extends ServiceMBeanSupport implements
     }
 
     protected void startService() throws Exception {
-        logDir = new File(ServerConfigLocator.locate().getServerHomeDir(),
-                "log");
-        hl7srv.addHandshakeFailedListener(tlsConfig.handshakeFailedListener());
-        hl7srv.addHandshakeCompletedListener(tlsConfig.handshakeCompletedListener());
-        hl7srv.setServerSocketFactory(tlsConfig.serverSocketFactory(protocol
-                .getCipherSuites()));
-        server.addNotificationListener(ServerImplMBean.OBJECT_NAME, this, null, null);
+        if (jbossStarted) {
+            log.info("Start HL7 server after restart of HL7Server service!");
+            startHL7Server();
+        } else {
+            logDir = new File(ServerConfigLocator.locate().getServerHomeDir(),
+                    "log");
+            hl7srv.addHandshakeFailedListener(tlsConfig.handshakeFailedListener());
+            hl7srv.addHandshakeCompletedListener(tlsConfig.handshakeCompletedListener());
+            hl7srv.setServerSocketFactory(tlsConfig.serverSocketFactory(protocol
+                    .getCipherSuites()));
+            server.addNotificationListener(ServerImplMBean.OBJECT_NAME, this, null, null);
+        }
     }
 
     protected void stopService() throws Exception {
         hl7srv.stop();
-        server.removeNotificationListener(ServerImplMBean.OBJECT_NAME, this);
     }
 
     public void handleNotification(Notification msg, Object arg1) {
         if (msg.getType().equals(org.jboss.system.server.Server.START_NOTIFICATION_TYPE)) {
+            startHL7Server();
+            jbossStarted = true;
             try {
-                hl7srv.start();
-            } catch (IOException x) {
-                log.error("Start of HL7 Server failed!", x);
-            }
+                server.removeNotificationListener(ServerImplMBean.OBJECT_NAME, this);
+            } catch (Exception ignore) {}
+        }
+    }
+    
+    private void startHL7Server() {
+        try {
+            hl7srv.start();
+        } catch (IOException x) {
+            log.error("Start of HL7 Server failed!", x);
         }
     }
     

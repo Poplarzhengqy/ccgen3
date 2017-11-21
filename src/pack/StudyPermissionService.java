@@ -363,7 +363,7 @@ public class StudyPermissionService extends ServiceMBeanSupport {
                 seriesStoredListener, SeriesStored.NOTIF_FILTER, null);
         server.removeNotificationListener(mppsScpServiceName,
                 mppsReceivedListener, MPPSScpService.NOTIF_FILTER, null);
-        server.removeNotificationListener(mppsScpServiceName,
+        server.removeNotificationListener(storeScpServiceName,
                 newStudyListener, StoreScpService.NOTIF_FILTER_NEW_STUDY, null);
     }
 
