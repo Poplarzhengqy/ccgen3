@@ -178,9 +178,6 @@ public class AEListPanel extends Panel {
         aetTypeSet.addAll(AELicenseProviderManager.get(null).getProvider().getAETypes(WebCfgDelegate.getInstance().getAETTypes()));
         List<String> aetTypes = new ArrayList<String>(aetTypeSet);
 
-        final boolean mayModifyAETs = ((aetTypes.size() > 0) || AELicenseProviderManager.get(null).getProvider().getName().equals("NOPLicenseProvider"));
-        newAET.setEnabled(mayModifyAETs);
-        
         add(new Label("type.filter.label", new StringResourceModel("ae.type.filter.label", AEListPanel.this, null, new Object[]{1} ) ) );
         DropDownChoice<String> typeSelection = null;
         add((typeSelection = new DropDownChoice<String>("type-selection",
@@ -272,7 +269,6 @@ public class AEListPanel extends Panel {
                     .add(new TooltipBehaviour("ae."))
                     .add(new SecurityBehavior(getModuleName() + ":editAETLink"))
                 );
-                editAET.setEnabled(mayModifyAETs);
                 
                 AjaxLink<?> removeAET = new AjaxLink<Object>("removeAET") {
     
