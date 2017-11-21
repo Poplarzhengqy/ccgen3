@@ -597,7 +597,7 @@ public class StudyListPage extends Panel {
             protected void onSubmit(AjaxRequestTarget target, Form<?> form) {
 
                 form.clearInput();
-                viewport.clear();
+                retainSelectedPatients();
                 ((DropDownChoice) ((WebMarkupContainer) form.get("searchDropdowns")).get("modality")).setModelObject("*");
                 DropDownChoice sourceAETDropDownChoice = ((DropDownChoice) ((WebMarkupContainer) form.get("searchDropdowns")).get("sourceAET"));
                 if (sourceAETDropDownChoice.getChoices().size() > 0)

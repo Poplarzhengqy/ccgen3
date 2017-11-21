@@ -298,7 +298,7 @@ public class TrashListPage extends Panel {
             protected void onSubmit(AjaxRequestTarget target, Form<?> form) {
 
                 form.clearInput();
-                viewport.clear();
+                retainSelectedPatients();
                 DropDownChoice sourceAETDropDownChoice = ((DropDownChoice) ((WebMarkupContainer) form.get("searchFields")).get("sourceAET"));
                 if (sourceAETDropDownChoice.getChoices().size() > 0)
                     sourceAETDropDownChoice.setModelObject(sourceAETDropDownChoice.getChoices().get(0));
